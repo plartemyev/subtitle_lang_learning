@@ -42,5 +42,18 @@ if __name__ == '__main__':
     with open(parameters.subtitle_file, encoding='latin-1') as sub_f:
         sub_generator = srt.parse(sub_f.read())
 
-    for sub in sub_generator:
-        print(sub.content)
+    subs_dict = {}
+    for sub_object in sub_generator:
+        for word in sub_object.content.split():
+            word = word.strip('.,?!" ').lower()
+            if len(word) < 2 or word.replace('.', '').isnumeric():
+                continue
+            if word not in subs_dict.keys():
+                subs_dict[word] = {'count': 1, 'sub_object': sub_object}
+            else:
+                subs_dict[word]['count'] += 1
+
+    sorted_subs_dict = dict(sorted(subs_dict.items(), key=lambda _kv: _kv[1]['count'], reverse=True))
+    for k, v in sorted_subs_dict.items():
+        print(f'Word: {k} \t Count: {v["count"]}')
+    module_logger.info(f'Found {len(sorted_subs_dict)} subtitle entries')
