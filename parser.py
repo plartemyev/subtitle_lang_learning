@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from typing import Dict
 
 import srt
 import logging
@@ -30,16 +31,8 @@ def logger_init():
     module_logger.handlers = [console_handler]
 
 
-if __name__ == '__main__':
-    parameters = ModuleParameters()
-    if parameters.debug:
-        module_logger.setLevel('DEBUG')
-    else:
-        module_logger.setLevel('INFO')
-    logger_init()
-
-    assert os.path.isfile(parameters.subtitle_file)
-    with open(parameters.subtitle_file, encoding='latin-1') as sub_f:
+def read_subtitles(p: ModuleParameters) -> Dict[str, dict]:
+    with open(p.subtitle_file, encoding='latin-1') as sub_f:
         sub_generator = srt.parse(sub_f.read())
 
     subs_dict = {}
@@ -52,8 +45,20 @@ if __name__ == '__main__':
                 subs_dict[word] = {'count': 1, 'sub_object': sub_object}
             else:
                 subs_dict[word]['count'] += 1
+    return dict(sorted(subs_dict.items(), key=lambda _kv: _kv[1]['count'], reverse=True))
 
-    sorted_subs_dict = dict(sorted(subs_dict.items(), key=lambda _kv: _kv[1]['count'], reverse=True))
+
+if __name__ == '__main__':
+    parameters = ModuleParameters()
+    if parameters.debug:
+        module_logger.setLevel('DEBUG')
+    else:
+        module_logger.setLevel('INFO')
+    logger_init()
+
+    assert os.path.isfile(parameters.subtitle_file)
+
+    sorted_subs_dict = read_subtitles(parameters)
     for k, v in sorted_subs_dict.items():
         print(f'Word: {k} \t Count: {v["count"]}')
     module_logger.info(f'Found {len(sorted_subs_dict)} subtitle entries')
