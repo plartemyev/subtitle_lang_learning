@@ -22,11 +22,13 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.setupUi(self)
         self.initUI()
         self.subtitles = {}
+        self.selected_word = ''
 
     def initUI(self):
         # self.ui.sourceDirSelectBtn.clicked.connect(self.dirSelectionDialog)
         self.ui.fileSelectBtn.clicked.connect(self.fileSelectionDialog)
-        # self.ui.targetDirSelectBtn.clicked.connect(self.dirSelectionDialog)
+        self.ui.translationOptionsGroup.buttonClicked.connect(self.translationOptionsChanged)
+        self.ui.translateCheckBox.clicked.connect(self.translationOptionsChanged)
         self.ui.filePathInput.editingFinished.connect(self.sourceFileProvided)
         # self.ui.operationModeRbtnGroup.buttonClicked.connect(self.operationModeChanged)
         # self.ui.commenceBtn.clicked.connect(self.commenceProcessing)
@@ -47,33 +49,48 @@ class MainWindow(QtWidgets.QMainWindow):
             self.commenceProcessing()
 
     def wordInAListSelected(self, item: PyQt5.QtCore.QModelIndex):
-        selected_word = item.data()
-        word_count = self.subtitles.get(selected_word, {}).get('count', 0)
-        full_phrase = self.subtitles.get(selected_word, {}).get('sub_object', {}).content
-        self.ui.fullPhraseTextBrowser.setText(f'Word "{selected_word}" encountered {word_count} times\n'
+        self.selected_word = item.data()
+        word_count = self.subtitles.get(self.selected_word, {}).get('count', 0)
+        full_phrase = self.subtitles.get(self.selected_word, {}).get('sub_object', {}).content
+        self.ui.fullPhraseTextBrowser.setText(f'Word "{self.selected_word}" encountered {word_count} times\n'
                                               f'Context:\n{full_phrase}')
-        if self.ui.translateOnlineCheckBox.isChecked():
-            self.onlineTranslate(f'{selected_word}\n{full_phrase}')
+        if self.ui.translateCheckBox.isChecked():
+            if self.ui.translateSingleWordRbtn.isChecked():
+                self.onlineTranslate(self.selected_word)
+            else:
+                self.onlineTranslate(full_phrase)
 
     def commenceProcessing(self):
         parser_parameters = ParserParameters(self.ui.filePathInput.text(), False)
         self.subtitles = parser.read_subtitles(parser_parameters)
         app_logger.info(f'Found {len(self.subtitles)} subtitle entries')
-        # for k, v in subtitles.items():
-        #     print(f'Word: {k} \t Count: {v["count"]}')
         words_list_model = QStandardItemModel(self.ui.wordsListView)
-        # words_list_model.itemChanged.connect(self.wordInAListSelected)
         self.ui.wordsListView.setModel(words_list_model)
-        selection_model = self.ui.wordsListView.selectionModel()
-        selection_model.currentChanged.connect(self.wordInAListSelected)
+        words_list_selection_model = self.ui.wordsListView.selectionModel()
+        words_list_selection_model.currentChanged.connect(self.wordInAListSelected)
         for word in self.subtitles.keys():
             item = QStandardItem(word)
             words_list_model.appendRow(item)
 
     def onlineTranslate(self, text: str):
         translate_url = QUrl(f'https://translate.google.com/#en/ru/{text}')
-        # self.ui.webEngineView.setEnabled(True)
         self.ui.webEngineView.load(translate_url)
+
+    def translationOptionsChanged(self):
+        print(self.ui.translateCheckBox.checkState())
+        if self.ui.translateCheckBox.isChecked():
+            self.ui.translationTabWidget.setEnabled(True)
+            self.ui.translateSingleWordRbtn.setEnabled(True)
+            self.ui.translatePhraseRbtn.setEnabled(True)
+            if self.ui.translateSingleWordRbtn.isChecked():
+                self.onlineTranslate(self.selected_word)
+            else:
+                selected_phrase = self.subtitles.get(self.selected_word, {}).get('sub_object', {}).content
+                self.onlineTranslate(selected_phrase)
+        else:
+            self.ui.translationTabWidget.setEnabled(False)
+            self.ui.translateSingleWordRbtn.setEnabled(False)
+            self.ui.translatePhraseRbtn.setEnabled(False)
 
 
 class ParserParameters(parser.ModuleParameters):
