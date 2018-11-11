@@ -4,11 +4,12 @@ import sys
 import os
 import logging
 
+import PyQt5
 from PyQt5.QtGui import QStandardItemModel, QStandardItem
 
 import parser
 from PyQt5 import QtWidgets, uic
-from PyQt5.QtCore import QDir
+from PyQt5.QtCore import QDir, QUrl
 
 from ui.main_window import *
 # Ui_MainWindow, QtBaseClass = uic.loadUiType('ui/main_window.ui')
@@ -19,8 +20,8 @@ class MainWindow(QtWidgets.QMainWindow):
         super(MainWindow, self).__init__()
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
-
         self.initUI()
+        self.subtitles = {}
 
     def initUI(self):
         # self.ui.sourceDirSelectBtn.clicked.connect(self.dirSelectionDialog)
@@ -45,17 +46,34 @@ class MainWindow(QtWidgets.QMainWindow):
         if os.path.isfile(_source_file):
             self.commenceProcessing()
 
+    def wordInAListSelected(self, item: PyQt5.QtCore.QModelIndex):
+        selected_word = item.data()
+        word_count = self.subtitles.get(selected_word, {}).get('count', 0)
+        full_phrase = self.subtitles.get(selected_word, {}).get('sub_object', {}).content
+        self.ui.fullPhraseTextBrowser.setText(f'Word "{selected_word}" encountered {word_count} times\n'
+                                              f'Context:\n{full_phrase}')
+        if self.ui.translateOnlineCheckBox.isChecked():
+            self.onlineTranslate(f'{selected_word}\n{full_phrase}')
+
     def commenceProcessing(self):
         parser_parameters = ParserParameters(self.ui.filePathInput.text(), False)
-        subtitles = parser.read_subtitles(parser_parameters)
-        app_logger.info(f'Found {len(subtitles)} subtitle entries')
+        self.subtitles = parser.read_subtitles(parser_parameters)
+        app_logger.info(f'Found {len(self.subtitles)} subtitle entries')
         # for k, v in subtitles.items():
         #     print(f'Word: {k} \t Count: {v["count"]}')
         words_list_model = QStandardItemModel(self.ui.wordsListView)
+        # words_list_model.itemChanged.connect(self.wordInAListSelected)
         self.ui.wordsListView.setModel(words_list_model)
-        for word in subtitles.keys():
+        selection_model = self.ui.wordsListView.selectionModel()
+        selection_model.currentChanged.connect(self.wordInAListSelected)
+        for word in self.subtitles.keys():
             item = QStandardItem(word)
             words_list_model.appendRow(item)
+
+    def onlineTranslate(self, text: str):
+        translate_url = QUrl(f'https://translate.google.com/#en/ru/{text}')
+        # self.ui.webEngineView.setEnabled(True)
+        self.ui.webEngineView.load(translate_url)
 
 
 class ParserParameters(parser.ModuleParameters):
