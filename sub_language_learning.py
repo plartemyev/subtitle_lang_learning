@@ -30,6 +30,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.translationOptionsGroup.buttonClicked.connect(self.translationOptionsChanged)
         self.ui.translateCheckBox.clicked.connect(self.translationOptionsChanged)
         self.ui.filePathInput.editingFinished.connect(self.sourceFileProvided)
+        self.ui.onlineSearchTitle.editingFinished.connect(self.loadSubtitlesFromInternet)
+        self.ui.onlineSearchBtn.clicked.connect(self.loadSubtitlesFromInternet)
 
         self.show()
 
@@ -72,8 +74,42 @@ class MainWindow(QtWidgets.QMainWindow):
             item = QStandardItem(word)
             words_list_model.appendRow(item)
 
+    def loadSubtitlesFromInternet(self):
+        if len(self.ui.onlineSearchTitle.text()) < 4:
+            return
+        params = ParserParameters(
+            self.ui.onlineSearchTitle.text(), False, self.ui.subtitlesLanguageSelect.currentText()
+        )
+        ost_handle = parser.OpenSubtitlesM()
+        ost_handle.login('', '')
+        online_subs_available = parser.search_subtitles(params.subtitle, params.language, ost_handle)
+        if len(online_subs_available) == 0:
+            return  # todo show alert that there were no subtitles found
+        sub_index = 0
+        for sub in online_subs_available:
+            try:
+                online_sub_id = online_subs_available[sub_index].get('IDSubtitleFile')
+                online_sub_name = online_subs_available[sub_index].get('SubFileName')
+                raw_sub = parser.download_subtitle(ost_handle, online_sub_id, online_sub_name)
+                sub_generator = srt.parse(raw_sub)
+                self.subtitles = parser.parse_subtitles(sub_generator)
+                break
+            except srt.SRTParseError as e:
+                app_logger.error(e)
+                sub_index += 1
+                continue
+        if sub_index + 1 == len(online_subs_available):
+            return  # Unable to decode any subs
+        words_list_model = QStandardItemModel(self.ui.wordsListView)
+        self.ui.wordsListView.setModel(words_list_model)
+        words_list_selection_model = self.ui.wordsListView.selectionModel()
+        words_list_selection_model.currentChanged.connect(self.wordInAListSelected)
+        for word in self.subtitles.keys():
+            item = QStandardItem(word)
+            words_list_model.appendRow(item)
+
     def onlineTranslate(self, text: str):
-        translate_url = QUrl(f'https://translate.google.com/#en/ru/{text}')
+        translate_url = QUrl(f'https://translate.google.com/#auto/ru/{text}')
         self.ui.webEngineView.load(translate_url)
 
     def translationOptionsChanged(self):
@@ -96,9 +132,10 @@ class MainWindow(QtWidgets.QMainWindow):
 
 
 class ParserParameters(parser.ModuleParameters):
-    def __init__(self, sub_file: str, debug: bool):
+    def __init__(self, sub_file: str, debug: bool, language=''):
         self.subtitle = sub_file
         self.debug = debug
+        self.language = language
 
 
 def logger_init():
@@ -109,7 +146,7 @@ def logger_init():
         datefmt='%S'
     )
     console_handler.setFormatter(console_formatter)
-    app_logger.handlers = [console_handler]
+    app_logger.handlers.append(console_handler)
 
 
 if __name__ == '__main__':

@@ -80,7 +80,7 @@ def logger_init():
         datefmt='%S'
     )
     console_handler.setFormatter(console_formatter)
-    module_logger.handlers = [console_handler]
+    module_logger.handlers.append(console_handler)
 
 
 def parse_subtitles(sub_gen: srt.parse) -> Dict[str, dict]:
@@ -127,7 +127,6 @@ if __name__ == '__main__':
         module_logger.setLevel('DEBUG')
     else:
         module_logger.setLevel('INFO')
-    logger_init()
 
     if parameters.subtitle.lower().endswith('.srt') and os.path.isfile(parameters.subtitle):
         raw_sub = read_subtitles_file(parameters.subtitle)
