@@ -8,6 +8,7 @@ import zlib
 from typing import List, Dict
 
 import srt
+
 from pythonopensubtitles.opensubtitles import OpenSubtitles
 
 module_logger = logging.getLogger(__name__)

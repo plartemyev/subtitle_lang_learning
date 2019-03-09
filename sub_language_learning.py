@@ -4,15 +4,17 @@ import logging
 import os
 import sys
 
-import PyQt5
+import parser
 import srt
+
+import PyQt5
 from PyQt5.QtCore import QDir, QUrl
 from PyQt5.QtGui import QStandardItemModel, QStandardItem
 
-import parser
+# python3 -m PyQt5.uic.pyuic main_window.ui -o main_window.py
 from ui.main_window import *
 
-
+# from PyQt5 import uic, QtWidgets
 # Ui_MainWindow, QtBaseClass = uic.loadUiType('ui/main_window.ui')
 
 
@@ -32,6 +34,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.filePathInput.editingFinished.connect(self.sourceFileProvided)
         self.ui.onlineSearchTitle.editingFinished.connect(self.loadSubtitlesFromInternet)
         self.ui.onlineSearchBtn.clicked.connect(self.loadSubtitlesFromInternet)
+        self.ui.translationTabWidget.tabBarClicked.connect(self.translationTabClicked)
 
         self.show()
 
@@ -65,7 +68,6 @@ class MainWindow(QtWidgets.QMainWindow):
         raw_sub = parser.read_subtitles_file(parser_parameters.subtitle)
         sub_generator = srt.parse(raw_sub)
         self.subtitles = parser.parse_subtitles(sub_generator)
-        app_logger.info(f'Found {len(self.subtitles)} subtitle entries')
         words_list_model = QStandardItemModel(self.ui.wordsListView)
         self.ui.wordsListView.setModel(words_list_model)
         words_list_selection_model = self.ui.wordsListView.selectionModel()
@@ -93,12 +95,15 @@ class MainWindow(QtWidgets.QMainWindow):
                 raw_sub = parser.download_subtitle(ost_handle, online_sub_id, online_sub_name)
                 sub_generator = srt.parse(raw_sub)
                 self.subtitles = parser.parse_subtitles(sub_generator)
+                app_logger.info('Successfully parsed subtitle file')
                 break
             except srt.SRTParseError as e:
-                app_logger.error(e)
+                app_logger.info('Unable to parse subtitle file. Will try another one if there is some')
+                app_logger.warning(e)
                 sub_index += 1
                 continue
         if sub_index + 1 == len(online_subs_available):
+            app_logger.warning(f'Unable to parse any subtitle file out of {len(online_subs_available)}')
             return  # Unable to decode any subs
         words_list_model = QStandardItemModel(self.ui.wordsListView)
         self.ui.wordsListView.setModel(words_list_model)
@@ -109,7 +114,9 @@ class MainWindow(QtWidgets.QMainWindow):
             words_list_model.appendRow(item)
 
     def onlineTranslate(self, text: str):
-        translate_url = QUrl(f'https://translate.google.com/#auto/ru/{text}')
+        translate_url = QUrl(
+            f'https://translate.google.com/m/translate#view=home&op=translate&sl=auto&tl=ru&text={text}'
+        )
         self.ui.webEngineView.load(translate_url)
 
     def translationOptionsChanged(self):
@@ -130,6 +137,10 @@ class MainWindow(QtWidgets.QMainWindow):
             self.ui.translateSingleWordRbtn.setEnabled(False)
             self.ui.translatePhraseRbtn.setEnabled(False)
 
+    def translationTabClicked(self):
+        current_tab = self.ui.translationTabWidget.currentWidget().objectName()
+        app_logger.info(f'Tab {current_tab} is active')
+
 
 class ParserParameters(parser.ModuleParameters):
     def __init__(self, sub_file: str, debug: bool, language=''):
@@ -146,13 +157,12 @@ def logger_init():
         datefmt='%S'
     )
     console_handler.setFormatter(console_formatter)
-    app_logger.handlers.append(console_handler)
+    logging.basicConfig(level=logging.INFO, handlers=[console_handler])
 
 
 if __name__ == '__main__':
     logging.captureWarnings(True)
     app_logger = logging.getLogger(__name__)
-    app_logger.setLevel('INFO')
     logger_init()
 
     app = QtWidgets.QApplication(sys.argv)
