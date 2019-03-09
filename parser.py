@@ -45,7 +45,7 @@ class OpenSubtitlesM(OpenSubtitles):
             subfile_id = item['idsubtitlefile']
 
             try:
-                decoded_data = decompress(item['data'], 'utf-8')
+                decoded_data = decompress(item['data'], 'utf_8_sig') or decompress(item['data'], 'utf-8')
             except UnicodeDecodeError:
                 decoded_data = decompress(item['data'], 'latin1')
 
@@ -68,7 +68,7 @@ def decompress(data, encoding):
         return zlib.decompress(base64.b64decode(data),
                                16 + zlib.MAX_WBITS).decode(encoding)
     except UnicodeDecodeError as e:
-        module_logger.info('Unable to decode content as utf-8')
+        module_logger.info(f'Unable to decode content as {encoding}')
         module_logger.debug(e)
         raise
 
