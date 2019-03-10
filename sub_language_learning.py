@@ -82,10 +82,10 @@ class MainWindow(QtWidgets.QMainWindow):
         params = ParserParameters(
             self.ui.onlineSearchTitle.text(), False, self.ui.subtitlesLanguageSelect.currentText()
         )
-        ost_handle = parser.OpenSubtitlesM()
-        ost_handle.login('', '')
+        ost_handle = parser.OpenSubtitles()
+        ost_handle.login('', '', parser.opensubtitles_lang, parser.opensubtitles_ua)
         online_subs_available = parser.search_subtitles(params.subtitle, params.language, ost_handle)
-        if len(online_subs_available) == 0:
+        if (not online_subs_available) or len(online_subs_available) == 0:
             return  # todo show alert that there were no subtitles found
         sub_index = 0
         for sub in online_subs_available:
@@ -102,7 +102,7 @@ class MainWindow(QtWidgets.QMainWindow):
                 app_logger.warning(e)
                 sub_index += 1
                 continue
-        if sub_index + 1 == len(online_subs_available):
+        if sub_index == len(online_subs_available):
             app_logger.warning(f'Unable to parse any subtitle file out of {len(online_subs_available)}')
             return  # Unable to decode any subs
         words_list_model = QStandardItemModel(self.ui.wordsListView)

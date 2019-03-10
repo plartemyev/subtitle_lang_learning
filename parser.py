@@ -6,10 +6,9 @@ import logging
 import os
 import zlib
 from typing import List, Dict
+from xmlrpc.client import ServerProxy, Transport
 
 import srt
-
-from pythonopensubtitles.opensubtitles import OpenSubtitles
 
 module_logger = logging.getLogger(__name__)
 logging.captureWarnings(True)
@@ -18,6 +17,10 @@ language_codes = {
     'English': 'eng',
     'German': 'ger'
 }
+
+opensubtitles_api_url = 'http://api.opensubtitles.org/xml-rpc'
+opensubtitles_ua = 'TemporaryUserAgent'
+opensubtitles_lang = 'en'
 
 
 class ModuleParameters:
@@ -32,15 +35,22 @@ class ModuleParameters:
         self.debug: bool = cli_args.debug
 
 
-class OpenSubtitlesM(OpenSubtitles):
+class OpenSubtitles:
     def __init__(self):
         self.data = {}
-        super().__init__()
+        self.token = None
+        self.xmlrpc_transport = Transport()
+        self.xmlrpc_transport.user_agent = opensubtitles_ua
+        self.xmlrpc = ServerProxy(opensubtitles_api_url, allow_none=True, transport=self.xmlrpc_transport)
+
+    def _strengthened_get(self, key):
+        status = self.data.get('status').split()[0] if isinstance(self.data.get('status'), str) else ''
+        return self.data.get(key) if '200' == status else None
 
     def retrieve_subtitles(self, ids: List[str]) -> Dict[str, str]:
         self.data = self.xmlrpc.DownloadSubtitles(self.token, ids)
         subtitles_content = {}
-        encoded_data = self._get_from_data_or_none('data')
+        encoded_data = self._strengthened_get('data')
         for item in encoded_data:
             subfile_id = item['idsubtitlefile']
 
@@ -55,6 +65,17 @@ class OpenSubtitlesM(OpenSubtitles):
             else:
                 subtitles_content[subfile_id] = decoded_data
         return subtitles_content
+
+    def search_subtitles(self, param: List[dict]) -> List[Dict[str, str]]:
+        self.data = self.xmlrpc.SearchSubtitles(self.token, param)
+        return self._strengthened_get('data')
+
+    def login(self, username, password, lang, user_agent):
+        self.data = self.xmlrpc.LogIn(username, password, lang, user_agent)
+        token = self._strengthened_get('token')
+        if token:
+            self.token = token
+        return token
 
 
 def decompress(data, encoding):
@@ -106,17 +127,17 @@ def read_subtitles_file(sub_file_path: str) -> str:
         return sub_f.read()
 
 
-def search_subtitles(video_name: str, language: str, ost_h: OpenSubtitlesM) -> List[Dict[str, str]]:
+def search_subtitles(video_name: str, language: str, ost_h: OpenSubtitles) -> List[Dict[str, str]]:
     module_logger.info(f'Searching subtitles for title {video_name} ({language}) in online DB')
     online_subs = ost_h.search_subtitles([{
-        'sublanguageid': language_codes.get(language, ''),
+        'sublanguageid': language_codes.get(language, 'eng'),
         'query': video_name
     }])
     module_logger.info(f'Found {len(online_subs)} matching subtitles')
     return online_subs
 
 
-def download_subtitle(ost_h: OpenSubtitlesM, sub_id: str, sub_name: str) -> str:
+def download_subtitle(ost_h: OpenSubtitles, sub_id: str, sub_name: str) -> str:
     module_logger.info(f'Downloading subtitle file {sub_name} ID: {sub_id}')
     raw_subs_dict = ost_h.retrieve_subtitles([sub_id])
     return raw_subs_dict.get(sub_id)
@@ -132,8 +153,8 @@ if __name__ == '__main__':
     if parameters.subtitle.lower().endswith('.srt') and os.path.isfile(parameters.subtitle):
         raw_sub = read_subtitles_file(parameters.subtitle)
     else:
-        ost_handle = OpenSubtitlesM()
-        ost_handle.login('', '')
+        ost_handle = OpenSubtitles()
+        ost_handle.login('', '', opensubtitles_lang, opensubtitles_ua)
         online_subs_available = search_subtitles(parameters.subtitle, parameters.language, ost_handle)
         online_sub_id = online_subs_available[0].get('IDSubtitleFile')
         online_sub_name = online_subs_available[0].get('SubFileName')

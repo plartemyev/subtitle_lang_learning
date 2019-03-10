@@ -1,6 +1,3 @@
 [submodule "srt"]
 	path = srt
 	url = https://github.com/cdown/srt.git
-[submodule "python-opensubtitles"]
-	path = python-opensubtitles
-	url = https://github.com/agonzalezro/python-opensubtitles.git
