@@ -5,6 +5,7 @@ import base64
 import logging
 import os
 import zlib
+import re
 from typing import List, Dict
 from xmlrpc.client import ServerProxy, Transport
 
@@ -17,6 +18,9 @@ language_codes = {
     'English': 'eng',
     'German': 'ger'
 }
+
+html_tags_filter = re.compile(r'<.*?>')
+www_spam_filter = re.compile(r'www\.\w+', re.I)
 
 opensubtitles_api_url = 'http://api.opensubtitles.org/xml-rpc'
 opensubtitles_ua = 'TemporaryUserAgent'
@@ -108,13 +112,16 @@ def logger_init():
 def parse_subtitles(sub_gen: srt.parse) -> Dict[str, dict]:
     subs_dict = {}
     for sub_object in sub_gen:
-        for word in sub_object.content.split():
-            # todo: filter out html formatting
-            word = word.strip('.,?!" ()').lower().split("'")[0].split("`")[0]  # getting rid of "we're", "it's", etc
+        sub_text = html_tags_filter.sub('', sub_object.content)
+        if www_spam_filter.search(sub_text):
+            # Skipping whole phrase as spam
+            continue
+        for word in sub_text.split():
+            word = word.strip('.,?!" ()[]:').lower().split("'")[0].split("`")[0]  # getting rid of "we're", "it's", etc
             if len(word) < 2 or word.replace('.', '').isnumeric():
                 continue
             if word not in subs_dict.keys():
-                subs_dict[word] = {'count': 1, 'sub_object': sub_object}
+                subs_dict[word] = {'count': 1, 'sub_object': sub_object, 'sub_text': sub_text}
             else:
                 subs_dict[word]['count'] += 1
     module_logger.info(f'Parsed {len(subs_dict)} unique words')

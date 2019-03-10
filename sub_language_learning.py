@@ -26,6 +26,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.initUI()
         self.subtitles = {}
         self.selected_word = ''
+        self.loaded_subs_for_title = ''
+        self.loaded_subs_for_lang = ''
 
     def initUI(self):
         self.ui.fileSelectBtn.clicked.connect(self.fileSelectionDialog)
@@ -54,7 +56,8 @@ class MainWindow(QtWidgets.QMainWindow):
     def wordInAListSelected(self, item: PyQt5.QtCore.QModelIndex):
         self.selected_word = item.data()
         word_count = self.subtitles.get(self.selected_word, {}).get('count', 0)
-        full_phrase = self.subtitles.get(self.selected_word, {}).get('sub_object', {}).content
+        full_phrase = self.subtitles.get(self.selected_word, {}).get('sub_text', {})
+        phrase_meta = self.subtitles.get(self.selected_word, {}).get('sub_object', {})
         self.ui.fullPhraseTextBrowser.setText(f'Word "{self.selected_word}" encountered {word_count} times\n'
                                               f'Context:\n{full_phrase}')
         if self.ui.translateCheckBox.isChecked():
@@ -77,11 +80,16 @@ class MainWindow(QtWidgets.QMainWindow):
             words_list_model.appendRow(item)
 
     def loadSubtitlesFromInternet(self):
-        if len(self.ui.onlineSearchTitle.text()) < 4:
+        if len(self.ui.onlineSearchTitle.text()) < 4 or (
+                self.ui.onlineSearchTitle.text() == self.loaded_subs_for_title and
+                self.ui.subtitlesLanguageSelect.currentText() == self.loaded_subs_for_lang
+        ):
             return
         params = ParserParameters(
             self.ui.onlineSearchTitle.text(), False, self.ui.subtitlesLanguageSelect.currentText()
         )
+        self.loaded_subs_for_title = params.subtitle
+        self.loaded_subs_for_lang = self.ui.subtitlesLanguageSelect.currentText()
         ost_handle = parser.OpenSubtitles()
         ost_handle.login('', '', parser.opensubtitles_lang, parser.opensubtitles_ua)
         online_subs_available = parser.search_subtitles(params.subtitle, params.language, ost_handle)
@@ -128,7 +136,7 @@ class MainWindow(QtWidgets.QMainWindow):
             if self.ui.translateSingleWordRbtn.isChecked():
                 self.onlineTranslate(self.selected_word)
             else:
-                selected_phrase = self.subtitles.get(self.selected_word, {}).get('sub_object', {}).content
+                selected_phrase = self.subtitles.get(self.selected_word, {}).get('sub_text', {})
                 self.onlineTranslate(selected_phrase)
         else:
             self.ui.webEngineView.setUrl(QtCore.QUrl("about:blank"))
