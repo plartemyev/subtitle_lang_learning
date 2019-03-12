@@ -3,19 +3,29 @@
 import logging
 import os
 import sys
+from typing import Callable
 
 import parser
 import srt
 
 import PyQt5
 from PyQt5.QtCore import QDir, QUrl
-from PyQt5.QtGui import QStandardItemModel, QStandardItem
+from PyQt5.QtGui import QStandardItemModel, QStandardItem, QBrush, QColor
 
 # python3 -m PyQt5.uic.pyuic main_window.ui -o main_window.py
 from ui.main_window import *
 
 # from PyQt5 import uic, QtWidgets
 # Ui_MainWindow, QtBaseClass = uic.loadUiType('ui/main_window.ui')
+
+
+def create_range_interpolator(original_min: int, original_max: int, new_min: int, new_max: int) -> Callable[[int], int]:
+    original_span = original_max - original_min
+    new_span = new_max - new_min
+
+    def interpolator(original_value: int) -> int:
+        return int(round(new_min + ((original_value - original_min) / original_span) * new_span))
+    return interpolator
 
 
 class MainWindow(QtWidgets.QMainWindow):
@@ -66,18 +76,30 @@ class MainWindow(QtWidgets.QMainWindow):
             else:
                 self.onlineTranslate(full_phrase)
 
-    def loadSubtitlesFromFile(self):
-        parser_parameters = ParserParameters(self.ui.filePathInput.text(), False)
-        raw_sub = parser.read_subtitles_file(parser_parameters.subtitle)
-        sub_generator = srt.parse(raw_sub)
-        self.subtitles = parser.parse_subtitles(sub_generator)
+    def populate_words_list(self):
+        top_word_prevalence = self.subtitles.get(tuple(self.subtitles.keys())[0]).get('count', 0)
+        color_interpolator = create_range_interpolator(1, int(round(top_word_prevalence / 5)), 250, 0)
         words_list_model = QStandardItemModel(self.ui.wordsListView)
         self.ui.wordsListView.setModel(words_list_model)
         words_list_selection_model = self.ui.wordsListView.selectionModel()
         words_list_selection_model.currentChanged.connect(self.wordInAListSelected)
         for word in self.subtitles.keys():
             item = QStandardItem(word)
+            word_prevalence = self.subtitles.get(word, {}).get('count', 0)
+            if word_prevalence > top_word_prevalence / 5:
+                hue_value = color_interpolator(int(round(top_word_prevalence / 5)))
+            else:
+                hue_value = color_interpolator(word_prevalence)
+            colored_brush = QBrush(QColor().fromHsv(hue_value, 70, 255))
+            item.setBackground(colored_brush)
             words_list_model.appendRow(item)
+
+    def loadSubtitlesFromFile(self):
+        parser_parameters = ParserParameters(self.ui.filePathInput.text(), False)
+        raw_sub = parser.read_subtitles_file(parser_parameters.subtitle)
+        sub_generator = srt.parse(raw_sub)
+        self.subtitles = parser.parse_subtitles(sub_generator)
+        self.populate_words_list()
 
     def loadSubtitlesFromInternet(self):
         if len(self.ui.onlineSearchTitle.text()) < 4 or (
@@ -113,13 +135,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if sub_index == len(online_subs_available):
             app_logger.warning(f'Unable to parse any subtitle file out of {len(online_subs_available)}')
             return  # Unable to decode any subs
-        words_list_model = QStandardItemModel(self.ui.wordsListView)
-        self.ui.wordsListView.setModel(words_list_model)
-        words_list_selection_model = self.ui.wordsListView.selectionModel()
-        words_list_selection_model.currentChanged.connect(self.wordInAListSelected)
-        for word in self.subtitles.keys():
-            item = QStandardItem(word)
-            words_list_model.appendRow(item)
+        self.populate_words_list()
 
     def onlineTranslate(self, text: str):
         translate_url = QUrl(
