@@ -11,7 +11,7 @@ from xmlrpc.client import ServerProxy, Transport
 
 import srt
 
-module_logger = logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 logging.captureWarnings(True)
 
 language_codes = {
@@ -64,7 +64,7 @@ class OpenSubtitles:
                 decoded_data = decompress(item['data'], 'latin1')
 
             if not decoded_data:
-                module_logger.error('An error occurred while decoding subtitle'
+                logger.error('An error occurred while decoding subtitle'
                                     'file ID {}.'.format(subfile_id))
             else:
                 subtitles_content[subfile_id] = decoded_data
@@ -93,8 +93,8 @@ def decompress(data, encoding):
         return zlib.decompress(base64.b64decode(data),
                                16 + zlib.MAX_WBITS).decode(encoding)
     except UnicodeDecodeError as e:
-        module_logger.info(f'Unable to decode content as {encoding}')
-        module_logger.debug(e)
+        logger.info(f'Unable to decode content as {encoding}')
+        logger.debug(e)
         raise
 
 
@@ -106,7 +106,7 @@ def logger_init():
         datefmt='%S'
     )
     console_handler.setFormatter(console_formatter)
-    module_logger.handlers.append(console_handler)
+    logger.handlers.append(console_handler)
 
 
 def parse_subtitles(sub_gen: srt.parse) -> Dict[str, dict]:
@@ -124,28 +124,28 @@ def parse_subtitles(sub_gen: srt.parse) -> Dict[str, dict]:
                 subs_dict[word] = {'count': 1, 'sub_object': sub_object, 'sub_text': sub_text}
             else:
                 subs_dict[word]['count'] += 1
-    module_logger.info(f'Parsed {len(subs_dict)} unique words')
+    logger.info(f'Parsed {len(subs_dict)} unique words')
     return dict(sorted(subs_dict.items(), key=lambda _kv: _kv[1]['count'], reverse=True))
 
 
 def read_subtitles_file(sub_file_path: str) -> str:
-    module_logger.info(f'Reading file {sub_file_path}')
+    logger.info(f'Reading file {sub_file_path}')
     with open(sub_file_path, encoding='latin-1') as sub_f:
         return sub_f.read()
 
 
 def search_subtitles(video_name: str, language: str, ost_h: OpenSubtitles) -> List[Dict[str, str]]:
-    module_logger.info(f'Searching subtitles for title {video_name} ({language}) in online DB')
+    logger.info(f'Searching subtitles for title {video_name} ({language}) in online DB')
     online_subs = ost_h.search_subtitles([{
         'sublanguageid': language_codes.get(language, 'eng'),
         'query': video_name
     }])
-    module_logger.info(f'Found {len(online_subs)} matching subtitles')
+    logger.info(f'Found {len(online_subs)} matching subtitles')
     return online_subs
 
 
 def download_subtitle(ost_h: OpenSubtitles, sub_id: str, sub_name: str) -> str:
-    module_logger.info(f'Downloading subtitle file {sub_name} ID: {sub_id}')
+    logger.info(f'Downloading subtitle file {sub_name} ID: {sub_id}')
     raw_subs_dict = ost_h.retrieve_subtitles([sub_id])
     return raw_subs_dict.get(sub_id)
 
@@ -153,9 +153,9 @@ def download_subtitle(ost_h: OpenSubtitles, sub_id: str, sub_name: str) -> str:
 if __name__ == '__main__':
     parameters = ModuleParameters()
     if parameters.debug:
-        module_logger.setLevel('DEBUG')
+        logger.setLevel('DEBUG')
     else:
-        module_logger.setLevel('INFO')
+        logger.setLevel('INFO')
 
     if parameters.subtitle.lower().endswith('.srt') and os.path.isfile(parameters.subtitle):
         raw_sub = read_subtitles_file(parameters.subtitle)

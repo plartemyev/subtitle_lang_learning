@@ -7,16 +7,18 @@ from typing import Callable
 
 import parser
 import srt
+import traceback
 
 import PyQt5
 from PyQt5.QtCore import QDir, QUrl
 from PyQt5.QtGui import QStandardItemModel, QStandardItem, QBrush, QColor
 
 # python3 -m PyQt5.uic.pyuic main_window.ui -o main_window.py
-from ui.main_window import *
+# from ui.main_window import *
 
-# from PyQt5 import uic, QtWidgets
-# Ui_MainWindow, QtBaseClass = uic.loadUiType('ui/main_window.ui')
+from PyQt5 import uic, QtWidgets, QtCore
+
+Ui_MainWindow, QtBaseClass = uic.loadUiType('ui/main_window.ui')
 
 
 def create_range_interpolator(original_min: int, original_max: int, new_min: int, new_max: int) -> Callable[[int], int]:
@@ -25,6 +27,7 @@ def create_range_interpolator(original_min: int, original_max: int, new_min: int
 
     def interpolator(original_value: int) -> int:
         return int(round(new_min + ((original_value - original_min) / original_span) * new_span))
+
     return interpolator
 
 
@@ -127,9 +130,9 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.subtitles = parser.parse_subtitles(sub_generator)
                 app_logger.info('Successfully parsed subtitle file')
                 break
-            except srt.SRTParseError as e:
+            except Exception as e:
                 app_logger.info('Unable to parse subtitle file. Will try another one if there is some')
-                app_logger.warning(e)
+                app_logger.debug('Traceback:\n{}'.format('\n'.join(traceback.format_tb(e.__traceback__))))
                 sub_index += 1
                 continue
         if sub_index == len(online_subs_available):
@@ -173,21 +176,23 @@ class ParserParameters(parser.ModuleParameters):
         self.language = language
 
 
-def logger_init():
-    common_log_format = '[%(name)s:PID %(process)d:%(levelname)s:%(asctime)s,%(msecs)03d] %(message)s'
+def logger_init(logger, lvl):
+    common_log_format = '[%(filename)s:line %(lineno)d:%(asctime)s:%(levelname)s] %(message)s'
     console_handler = logging.StreamHandler()
     console_formatter = logging.Formatter(
         fmt=common_log_format,
-        datefmt='%S'
+        datefmt='%H.%M.%S'
     )
     console_handler.setFormatter(console_formatter)
-    logging.basicConfig(level=logging.INFO, handlers=[console_handler])
+    logger.addHandler(console_handler)
+    logger.setLevel(lvl)
 
 
 if __name__ == '__main__':
     logging.captureWarnings(True)
-    app_logger = logging.getLogger(__name__)
-    logger_init()
+    app_logger = logging.getLogger('SLL')
+    parser.logger = logging.getLogger('SLL.parser')
+    logger_init(app_logger, logging.INFO)
 
     app = QtWidgets.QApplication(sys.argv)
     app_ui = MainWindow()
