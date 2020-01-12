@@ -29,7 +29,27 @@ Words are arranged by they frequency.
 
 REQUIREMENTS
 -------------
-App requires **python>=3.5**, **PyQt5** and **srt**.
+App requires **python>=3.5**, **PyQt5**, **PyQtWebEngine**, and **srt**.
+
+INSTALLATION
+------------
+On Linux:
+* Install Python 3.x and PIP via your distribution package manager.
+* Clone or download this repository. 
+* Try to install requirements also with package manager. And only if some
+requirements are still missing - install them with PIP:  
+**pip3 install --user -r subtitle_lang_learning/requirements.txt**
+
+On Windows:
+* Install x86-64 Python 3.x: From [https://www.python.org/downloads/windows/]  
+select "Download Windows x86-64 executable installer".  
+When installing, check "Add Python to PATH";
+* Download this program from this page by clicking on the "Clone or download" button
+and selecting "Download ZIP". Then unpack the archive.
+* Install requirements with PIP, E. G. Open a command prompt and execute:  
+**pip3 install --user -r Downloads/subtitle_lang_learning-master/requirements.txt**
+* Run the program by double-clicking on **sub_language_learning.py**
+
 
 TODO
 ----
