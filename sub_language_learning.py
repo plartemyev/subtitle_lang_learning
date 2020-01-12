@@ -3,22 +3,24 @@
 import logging
 import os
 import sys
+import traceback
+from pathlib import Path
 from typing import Callable
 
-import parser
-import srt
-import traceback
-
 import PyQt5
+import srt
+from PyQt5 import uic, QtWidgets, QtCore
 from PyQt5.QtCore import QDir, QUrl
 from PyQt5.QtGui import QStandardItemModel, QStandardItem, QBrush, QColor
 
-# python3 -m PyQt5.uic.pyuic main_window.ui -o main_window.py
-# from ui.main_window import *
+import sub_parser
 
-from PyQt5 import uic, QtWidgets, QtCore
+# For development it might be easier to work with PyQt ui declared as .py files:
+# python3 -m PyQt5.uic.pyuic ui_resources/main_window.ui -o ui_resources/main_window.py
+# from ui_resources.main_window import *
 
-Ui_MainWindow, QtBaseClass = uic.loadUiType('ui/main_window.ui')
+main_window_ui_path = Path(__file__).parent.joinpath('ui_resources').joinpath('main_window.ui').resolve()
+Ui_MainWindow, QtBaseClass = uic.loadUiType(main_window_ui_path)
 
 
 def create_range_interpolator(original_min: int, original_max: int, new_min: int, new_max: int) -> Callable[[int], int]:
@@ -99,9 +101,9 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def loadSubtitlesFromFile(self):
         parser_parameters = ParserParameters(self.ui.filePathInput.text(), False)
-        raw_sub = parser.read_subtitles_file(parser_parameters.subtitle)
+        raw_sub = sub_parser.read_subtitles_file(parser_parameters.subtitle)
         sub_generator = srt.parse(raw_sub)
-        self.subtitles = parser.parse_subtitles(sub_generator)
+        self.subtitles = sub_parser.parse_subtitles(sub_generator)
         self.populate_words_list()
 
     def loadSubtitlesFromInternet(self):
@@ -115,9 +117,9 @@ class MainWindow(QtWidgets.QMainWindow):
         )
         self.loaded_subs_for_title = params.subtitle
         self.loaded_subs_for_lang = self.ui.subtitlesLanguageSelect.currentText()
-        ost_handle = parser.OpenSubtitles()
-        ost_handle.login('', '', parser.opensubtitles_lang, parser.opensubtitles_ua)
-        online_subs_available = parser.search_subtitles(params.subtitle, params.language, ost_handle)
+        ost_handle = sub_parser.OpenSubtitles()
+        ost_handle.login('', '', sub_parser.opensubtitles_lang, sub_parser.opensubtitles_ua)
+        online_subs_available = sub_parser.search_subtitles(params.subtitle, params.language, ost_handle)
         if (not online_subs_available) or len(online_subs_available) == 0:
             return  # todo show alert that there were no subtitles found
         sub_index = 0
@@ -125,9 +127,9 @@ class MainWindow(QtWidgets.QMainWindow):
             try:
                 online_sub_id = online_subs_available[sub_index].get('IDSubtitleFile')
                 online_sub_name = online_subs_available[sub_index].get('SubFileName')
-                raw_sub = parser.download_subtitle(ost_handle, online_sub_id, online_sub_name)
+                raw_sub = sub_parser.download_subtitle(ost_handle, online_sub_id, online_sub_name)
                 sub_generator = srt.parse(raw_sub)
-                self.subtitles = parser.parse_subtitles(sub_generator)
+                self.subtitles = sub_parser.parse_subtitles(sub_generator)
                 app_logger.info('Successfully parsed subtitle file')
                 break
             except Exception as e:
@@ -169,7 +171,7 @@ class MainWindow(QtWidgets.QMainWindow):
         app_logger.info(f'Tab {current_tab} is active')
 
 
-class ParserParameters(parser.ModuleParameters):
+class ParserParameters(sub_parser.ModuleParameters):
     def __init__(self, sub_file: str, debug: bool, language=''):
         self.subtitle = sub_file
         self.debug = debug
@@ -191,7 +193,7 @@ def logger_init(logger, lvl):
 if __name__ == '__main__':
     logging.captureWarnings(True)
     app_logger = logging.getLogger('SLL')
-    parser.logger = logging.getLogger('SLL.parser')
+    sub_parser.logger = logging.getLogger('SLL.parser')
     logger_init(app_logger, logging.INFO)
 
     app = QtWidgets.QApplication(sys.argv)
