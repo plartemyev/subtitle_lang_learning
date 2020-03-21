@@ -1,3 +1,6 @@
 __pycache__/
 .directory
 .swp
+/.idea/
+/ui_resources/main_window.py
+/samples/
