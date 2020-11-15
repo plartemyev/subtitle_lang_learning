@@ -23,6 +23,15 @@ main_window_ui_path = Path(__file__).parent.joinpath('ui_resources').joinpath('m
 Ui_MainWindow, QtBaseClass = uic.loadUiType(main_window_ui_path)
 
 
+class UIWarningHandler(logging.Handler):
+    def __init__(self, parent_widget):
+        super().__init__()
+        self.widget = parent_widget
+
+    def emit(self, record: logging.LogRecord) -> None:
+        QtWidgets.QMessageBox.warning(self.widget, record.levelname, record.message)
+
+
 def create_range_interpolator(original_min: int, original_max: int, new_min: int, new_max: int) -> Callable[[int], int]:
     original_span = original_max - original_min
     new_span = new_max - new_min
@@ -190,12 +199,15 @@ def logger_init(logger, lvl):
 
 
 if __name__ == '__main__':
+    app = QtWidgets.QApplication(sys.argv)
+    app_ui = MainWindow()
+
     logging.captureWarnings(True)
     app_logger = logging.getLogger('SLL')
     sub_parser.logger = logging.getLogger('SLL.parser')
     logger_init(app_logger, logging.INFO)
-
-    app = QtWidgets.QApplication(sys.argv)
-    app_ui = MainWindow()
+    ui_warning_handler = UIWarningHandler(app_ui)
+    ui_warning_handler.setLevel(logging.WARNING)
+    app_logger.addHandler(ui_warning_handler)
 
     sys.exit(app.exec_())
