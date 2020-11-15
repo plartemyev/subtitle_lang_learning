@@ -6,6 +6,7 @@ import logging
 import os
 import zlib
 import re
+import nltk
 from typing import List, Dict
 from xmlrpc.client import ServerProxy, Transport
 
@@ -17,6 +18,21 @@ logging.captureWarnings(True)
 language_codes = {
     'English': 'eng',
     'German': 'ger'
+}
+
+map_universal_to_wordnet = {
+    'VERB': 'v',  # verbs
+    'NOUN': 'n',  # nouns
+    'PRON': 'n',  # pronouns
+    'ADJ': 'a',  # adjectives
+    'ADV': 'r',  # adverbs
+    'ADP': 'r',  # adpositions (prepositions and postpositions)
+    'CONJ': 's',  # conjunctions
+    'DET': 's',  # determiners
+    'NUM': 'n',  # cardinal numbers
+    'PRT': 'n',  # particles or other function words
+    'X': 'n',  # other: foreign words, typos, abbreviations
+    '.': 'n',  # punctuation
 }
 
 html_tags_filter = re.compile(r'<.*?>')
@@ -111,19 +127,32 @@ def logger_init():
 
 def parse_subtitles(sub_gen: srt.parse) -> Dict[str, dict]:
     subs_dict = {}
+    wordnet_lemmatizer = nltk.WordNetLemmatizer()
     for sub_object in sub_gen:
         sub_text = html_tags_filter.sub('', sub_object.content)
         if www_spam_filter.search(sub_text):
             # Skipping whole phrase as spam
             continue
-        for word in sub_text.split():
-            word = word.strip('.,?!" ()[]:').lower().split("'")[0].split("`")[0]  # getting rid of "we're", "it's", etc
-            if len(word) < 2 or word.replace('.', '').isnumeric():
+        tagged_sub_tokens = nltk.pos_tag(nltk.word_tokenize(sub_text), tagset='universal')
+        for tagged_token in tagged_sub_tokens:
+            if tagged_token[1] in ('.', 'NUM'):
+                # skipping punctuation and cardinal numbers
                 continue
-            if word not in subs_dict.keys():
-                subs_dict[word] = {'count': 1, 'sub_object': sub_object, 'sub_text': sub_text}
+            word = ''
+            if tagged_token[0].startswith("'") and tagged_token[1] == 'VERB':
+                if tagged_token[0] == "'re":
+                    word = 'are'
+                elif tagged_token[0] == "'s":
+                    word = 'is'
+                elif tagged_token[0] == "'ve":
+                    word = 'have'
             else:
-                subs_dict[word]['count'] += 1
+                word = tagged_token[0]
+            lemma = wordnet_lemmatizer.lemmatize(word, pos=map_universal_to_wordnet[tagged_token[1]]).lower()
+            if lemma not in subs_dict.keys():
+                subs_dict[lemma] = {'count': 1, 'sub_object': sub_object, 'sub_text': sub_text}
+            else:
+                subs_dict[lemma]['count'] += 1
     logger.info(f'Parsed {len(subs_dict)} unique words')
     return dict(sorted(subs_dict.items(), key=lambda _kv: _kv[1]['count'], reverse=True))
 
