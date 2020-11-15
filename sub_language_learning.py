@@ -9,13 +9,13 @@ from typing import Callable
 
 import PyQt5
 import srt
-from PyQt5 import uic, QtWidgets, QtCore
+from PyQt5 import QtCore, QtWidgets, uic
 from PyQt5.QtCore import QDir, QUrl
-from PyQt5.QtGui import QStandardItemModel, QStandardItem, QBrush, QColor
+from PyQt5.QtGui import QBrush, QColor, QStandardItem, QStandardItemModel
 
 import sub_parser
 
-# For development it might be easier to work with PyQt ui declared as .py files:
+# For development, it might be easier to work with PyQt ui declared as .py files:
 # python3 -m PyQt5.uic.pyuic ui_resources/main_window.ui -o ui_resources/main_window.py
 # from ui_resources.main_window import *
 
@@ -100,7 +100,7 @@ class MainWindow(QtWidgets.QMainWindow):
             words_list_model.appendRow(item)
 
     def loadSubtitlesFromFile(self):
-        parser_parameters = ParserParameters(self.ui.filePathInput.text(), False)
+        parser_parameters = sub_parser.ModuleParameters(self.ui.filePathInput.text())
         raw_sub = sub_parser.read_subtitles_file(parser_parameters.subtitle)
         sub_generator = srt.parse(raw_sub)
         self.subtitles = sub_parser.parse_subtitles(sub_generator)
@@ -112,35 +112,40 @@ class MainWindow(QtWidgets.QMainWindow):
                 self.ui.subtitlesLanguageSelect.currentText() == self.loaded_subs_for_lang
         ):
             return
-        params = ParserParameters(
-            self.ui.onlineSearchTitle.text(), False, self.ui.subtitlesLanguageSelect.currentText()
+        params = sub_parser.ModuleParameters(
+            self.ui.onlineSearchTitle.text(), self.ui.subtitlesLanguageSelect.currentText()
         )
         self.loaded_subs_for_title = params.subtitle
         self.loaded_subs_for_lang = self.ui.subtitlesLanguageSelect.currentText()
-        ost_handle = sub_parser.OpenSubtitles()
-        ost_handle.login('', '', sub_parser.opensubtitles_lang, sub_parser.opensubtitles_ua)
-        online_subs_available = sub_parser.search_subtitles(params.subtitle, params.language, ost_handle)
-        if (not online_subs_available) or len(online_subs_available) == 0:
-            return  # todo show alert that there were no subtitles found
-        sub_index = 0
-        for sub in online_subs_available:
-            try:
-                online_sub_id = online_subs_available[sub_index].get('IDSubtitleFile')
-                online_sub_name = online_subs_available[sub_index].get('SubFileName')
-                raw_sub = sub_parser.download_subtitle(ost_handle, online_sub_id, online_sub_name)
-                sub_generator = srt.parse(raw_sub)
-                self.subtitles = sub_parser.parse_subtitles(sub_generator)
-                app_logger.info('Successfully parsed subtitle file')
-                break
-            except Exception as e:
-                app_logger.info('Unable to parse subtitle file. Will try another one if there is some')
-                app_logger.debug('Traceback:\n{}'.format('\n'.join(traceback.format_tb(e.__traceback__))))
-                sub_index += 1
-                continue
-        if sub_index == len(online_subs_available):
-            app_logger.warning(f'Unable to parse any subtitle file out of {len(online_subs_available)}')
-            return  # Unable to decode any subs
-        self.populate_words_list()
+        try:
+            ost_handle = sub_parser.OpenSubtitles()
+            ost_handle.login('', '')
+            online_subs_available = sub_parser.search_subtitles(params.subtitle, params.language, ost_handle)
+        except Exception as e:
+            app_logger.warning('Problem with OpenSubtitles.org communication.', exc_info=e)
+        else:
+            if (not online_subs_available) or len(online_subs_available) == 0:
+                app_logger.warning('No subtitles found')
+                return
+            sub_index = 0
+            for sub in online_subs_available:
+                try:
+                    online_sub_id = online_subs_available[sub_index].get('IDSubtitleFile')
+                    online_sub_name = online_subs_available[sub_index].get('SubFileName')
+                    raw_sub = sub_parser.download_subtitle(ost_handle, online_sub_id, online_sub_name)
+                    sub_generator = srt.parse(raw_sub)
+                    self.subtitles = sub_parser.parse_subtitles(sub_generator)
+                    app_logger.info('Successfully parsed subtitle file')
+                    break
+                except Exception as e:
+                    app_logger.info('Unable to parse subtitle file. Will try another one if there is some')
+                    app_logger.debug('Traceback:\n{}'.format('\n'.join(traceback.format_tb(e.__traceback__))))
+                    sub_index += 1
+                    continue
+            if sub_index == len(online_subs_available):
+                app_logger.warning(f'Unable to parse any subtitle file out of {len(online_subs_available)}')
+                return  # Unable to decode any subs
+            self.populate_words_list()
 
     def onlineTranslate(self, text: str):
         translate_url = QUrl(
@@ -171,13 +176,6 @@ class MainWindow(QtWidgets.QMainWindow):
         app_logger.info(f'Tab {current_tab} is active')
 
 
-class ParserParameters(sub_parser.ModuleParameters):
-    def __init__(self, sub_file: str, debug: bool, language=''):
-        self.subtitle = sub_file
-        self.debug = debug
-        self.language = language
-
-
 def logger_init(logger, lvl):
     common_log_format = '[%(filename)s:line %(lineno)d:%(asctime)s:%(levelname)s] %(message)s'
     console_handler = logging.StreamHandler()
@@ -186,6 +184,7 @@ def logger_init(logger, lvl):
         datefmt='%H.%M.%S'
     )
     console_handler.setFormatter(console_formatter)
+    console_handler.setLevel(lvl)
     logger.addHandler(console_handler)
     logger.setLevel(lvl)
 

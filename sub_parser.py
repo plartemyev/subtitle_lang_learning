@@ -38,64 +38,63 @@ map_universal_to_wordnet = {
 html_tags_filter = re.compile(r'<.*?>')
 www_spam_filter = re.compile(r'www\.\w+', re.I)
 
-opensubtitles_api_url = 'http://api.opensubtitles.org/xml-rpc'
-opensubtitles_ua = 'TemporaryUserAgent'
-opensubtitles_lang = 'en'
-
 
 class ModuleParameters:
-    def __init__(self):
-        cli = argparse.ArgumentParser()
-        cli.add_argument('subtitle_file', type=str)
-        cli.add_argument('--language', type=str, default='English')
-        cli.add_argument('--debug', action='store_true')
-        cli_args = cli.parse_args()
-        self.subtitle: str = cli_args.subtitle_file
-        self.language: str = cli_args.language
-        self.debug: bool = cli_args.debug
+    def __init__(self, subtitle='', language='', debug=False):
+        self.subtitle = subtitle
+        self.language = language
+        self.debug = debug
 
 
 class OpenSubtitles:
     def __init__(self):
-        self.data = {}
+        # noinspection SpellCheckingInspection
+        opensubtitles_ua = b'VkxzdWIgMC4xMC4y'
+        self.ua = base64.b64decode(opensubtitles_ua).decode()
+        self.opensubtitles_api_url = 'http://api.opensubtitles.org/xml-rpc'
+        self.opensubtitles_lang = 'en'
         self.token = None
         self.xmlrpc_transport = Transport()
-        self.xmlrpc_transport.user_agent = opensubtitles_ua
-        self.xmlrpc = ServerProxy(opensubtitles_api_url, allow_none=True, transport=self.xmlrpc_transport)
-
-    def _strengthened_get(self, key):
-        status = self.data.get('status').split()[0] if isinstance(self.data.get('status'), str) else ''
-        return self.data.get(key) if '200' == status else None
+        self.xmlrpc_transport.user_agent = self.ua
+        self.xmlrpc = ServerProxy(self.opensubtitles_api_url, allow_none=True, transport=self.xmlrpc_transport)
 
     def retrieve_subtitles(self, ids: List[str]) -> Dict[str, str]:
-        self.data = self.xmlrpc.DownloadSubtitles(self.token, ids)
-        subtitles_content = {}
-        encoded_data = self._strengthened_get('data')
-        for item in encoded_data:
-            subfile_id = item['idsubtitlefile']
+        response = self.xmlrpc.DownloadSubtitles(self.token, ids)
+        status = response.get('status', '').split()[0]
+        if status == '200':
+            subtitles_content = {}
+            encoded_data = response.get('data')
+            for item in encoded_data:
+                subfile_id = item['idsubtitlefile']
+                try:
+                    decoded_data = decompress(item['data'], 'utf_8_sig') or decompress(item['data'], 'utf-8')
+                except UnicodeDecodeError:
+                    decoded_data = decompress(item['data'], 'latin1')
 
-            try:
-                decoded_data = decompress(item['data'], 'utf_8_sig') or decompress(item['data'], 'utf-8')
-            except UnicodeDecodeError:
-                decoded_data = decompress(item['data'], 'latin1')
-
-            if not decoded_data:
-                logger.error('An error occurred while decoding subtitle'
-                                    'file ID {}.'.format(subfile_id))
-            else:
-                subtitles_content[subfile_id] = decoded_data
-        return subtitles_content
+                if not decoded_data:
+                    logger.error('An error occurred while decoding subtitle'
+                                 'file ID {}.'.format(subfile_id))
+                else:
+                    subtitles_content[subfile_id] = decoded_data
+            return subtitles_content
+        else:
+            raise RuntimeWarning(f'Unable to get subtitles, returned status is {status}')
 
     def search_subtitles(self, param: List[dict]) -> List[Dict[str, str]]:
-        self.data = self.xmlrpc.SearchSubtitles(self.token, param)
-        return self._strengthened_get('data')
+        response = self.xmlrpc.SearchSubtitles(self.token, param)
+        status = response.get('status', '').split()[0]
+        if status == '200':
+            return response.get('data')
+        else:
+            raise RuntimeWarning(f'Unable to search subtitles, returned status is {status}')
 
-    def login(self, username, password, lang, user_agent):
-        self.data = self.xmlrpc.LogIn(username, password, lang, user_agent)
-        token = self._strengthened_get('token')
-        if token:
-            self.token = token
-        return token
+    def login(self, username, password):
+        response = self.xmlrpc.LogIn(username, password, self.opensubtitles_lang, self.ua)
+        status = response.get('status', '').split()[0]
+        if status == '200':
+            self.token = response.get('token')
+        else:
+            raise RuntimeWarning(f'Unable to authenticate, returned status is {status}')
 
 
 def decompress(data, encoding):
@@ -165,12 +164,14 @@ def read_subtitles_file(sub_file_path: str) -> str:
 
 def search_subtitles(video_name: str, language: str, ost_h: OpenSubtitles) -> List[Dict[str, str]]:
     logger.info(f'Searching subtitles for title {video_name} ({language}) in online DB')
-    online_subs = ost_h.search_subtitles([{
+    if online_subs := ost_h.search_subtitles([{
         'sublanguageid': language_codes.get(language, 'eng'),
         'query': video_name
-    }])
-    logger.info(f'Found {len(online_subs)} matching subtitles')
-    return online_subs
+    }]):
+        logger.info(f'Found {len(online_subs)} matching subtitles')
+        return online_subs
+    else:
+        return []
 
 
 def download_subtitle(ost_h: OpenSubtitles, sub_id: str, sub_name: str) -> str:
@@ -180,7 +181,13 @@ def download_subtitle(ost_h: OpenSubtitles, sub_id: str, sub_name: str) -> str:
 
 
 if __name__ == '__main__':
-    parameters = ModuleParameters()
+    cli = argparse.ArgumentParser()
+    cli.add_argument('subtitle_file', type=str)
+    cli.add_argument('--language', type=str, default='English')
+    cli.add_argument('--debug', action='store_true')
+    cli_args = cli.parse_args()
+    parameters = ModuleParameters(cli_args.subtitle_file, cli_args.language, cli_args.debug)
+
     if parameters.debug:
         logger.setLevel('DEBUG')
     else:
@@ -190,7 +197,7 @@ if __name__ == '__main__':
         raw_sub = read_subtitles_file(parameters.subtitle)
     else:
         ost_handle = OpenSubtitles()
-        ost_handle.login('', '', opensubtitles_lang, opensubtitles_ua)
+        ost_handle.login('', '')
         online_subs_available = search_subtitles(parameters.subtitle, parameters.language, ost_handle)
         online_sub_id = online_subs_available[0].get('IDSubtitleFile')
         online_sub_name = online_subs_available[0].get('SubFileName')
