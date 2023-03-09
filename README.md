@@ -3,14 +3,14 @@ Learning languages by watching movies without translation.
 
 This app is originally written to help my girlfriend study English.
 I think it is more productive to glance at the list of words used in the movie beforehand
-and look at the translation of unfamiliar ones, instead of stopping in the middle to lookup
+and look at the translation of unfamiliar ones, instead of stopping in the middle to look up
 some word. App provides a list of unique words with they ubiquity and the context in a phrase.
 ![app_screenshot]
 
 LICENSE
 -------
 This is free software, distributed under the GPL v.3. If you want to discuss
-a release under another license, please open an issue on Github
+a release under another license, please open an issue on GitHub
 
 NOTES
 -----
@@ -29,18 +29,18 @@ Words are arranged by they frequency.
 
 REQUIREMENTS
 -------------
-App requires **python>=3.5**, **PyQt5**, **PyQtWebEngine**, and **srt**.
+App requires **python>=3.5**, **PyQt5**, **PyQtWebEngine**, **chardet** and **srt**.
 
 INSTALLATION
 ------------
-On Linux:
+### On Linux:
 * Install Python 3.x and PIP via your distribution package manager.
 * Clone or download this repository. 
 * Try to install requirements also with package manager. And only if some
 requirements are still missing - install them with PIP:  
 **pip3 install --user -r subtitle_lang_learning/requirements.txt**
 
-On Windows:
+### On Windows:
 * Install x86-64 Python 3.x: From [https://www.python.org/downloads/windows/]  
 select "Download Windows x86-64 executable installer".  
 When installing, check "Add Python to PATH";
@@ -49,6 +49,14 @@ and selecting "Download ZIP". Then unpack the archive.
 * Install requirements with PIP, E. G. Open a command prompt and execute:  
 **pip3 install --user -r Downloads/subtitle_lang_learning-master/requirements.txt**
 * Run the program by double-clicking on **sub_language_learning.py**
+
+### On macOS 10.9 and later
+* Download and install the latest **macOS 64-bit universal2 installer** from the official website
+[https://www.python.org/downloads/macos/] 
+* Check that you have Git installed [https://github.com/git-guides/install-git/] 
+* Open the command prompt "terminal" and execute `git clone git@github.com:plartemyev/subtitle_lang_learning.git`
+* Then execute `pip3 install --user -r subtitle_lang_learning/requirements.txt`
+* And run the program by executing `python3 subtitle_lang_learning/sub_language_learning.py`
 
 
 TODO
@@ -60,6 +68,8 @@ TODO
 the moment when a phrase is being spoken at the click on selected word.
 * [ ] Localization.
 * [ ] Package for Android.
+* [ ] Package for Windows.
+* [ ] Package for macOS.
 
 CONTRIBUTING
 ------------
