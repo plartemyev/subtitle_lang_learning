@@ -158,7 +158,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def onlineTranslate(self, text: str):
         translate_url = QUrl(
-            f'https://translate.google.com/m/translate#view=home&op=translate&sl=auto&tl=ru&text={text}'
+            f'https://translate.google.com/?sl=auto&tl=ru&op=translate&text={text}'
         )
         self.ui.webEngineView.load(translate_url)
 

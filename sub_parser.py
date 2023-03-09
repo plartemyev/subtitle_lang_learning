@@ -8,6 +8,8 @@ import zlib
 import re
 from typing import List, Dict
 from xmlrpc.client import ServerProxy, Transport
+from chardet.universaldetector import UniversalDetector
+
 
 import srt
 
@@ -129,7 +131,15 @@ def parse_subtitles(sub_gen: srt.parse) -> Dict[str, dict]:
 
 def read_subtitles_file(sub_file_path: str) -> str:
     logger.info(f'Reading file {sub_file_path}')
-    with open(sub_file_path, encoding='latin-1') as sub_f:
+    detector = UniversalDetector()
+    for line in open(sub_file_path, mode='rb'):
+        detector.feed(line)
+        if detector.done:
+            break
+        else:
+            raise RuntimeError(f'Unable to detect encoding for file {sub_file_path}')
+    detector.close()
+    with open(sub_file_path, encoding=detector.result.get('encoding')) as sub_f:
         return sub_f.read()
 
 
