@@ -18,7 +18,7 @@ import sub_parser
 # For development, it might be easier to work with PyQt ui declared as .py files:
 # python3 -m PyQt5.uic.pyuic ui_resources/main_window.ui -o ui_resources/main_window.py
 # from ui_resources.main_window import *
-
+# And ten comment out lines 22-23
 main_window_ui_path = Path(__file__).parent.joinpath('ui_resources').joinpath('main_window.ui').resolve()
 Ui_MainWindow, QtBaseClass = uic.loadUiType(main_window_ui_path)
 

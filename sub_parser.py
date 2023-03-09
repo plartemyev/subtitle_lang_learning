@@ -10,7 +10,6 @@ from typing import List, Dict
 from xmlrpc.client import ServerProxy, Transport
 from chardet.universaldetector import UniversalDetector
 
-
 import srt
 
 logger = logging.getLogger(__name__)
@@ -51,18 +50,13 @@ class OpenSubtitles:
             subtitles_content = {}
             encoded_data = response.get('data')
             for item in encoded_data:
-                subfile_id = item['idsubtitlefile']
-                try:
-                    decoded_data = decompress(item['data'], 'utf_8_sig') or decompress(item['data'], 'utf-8')
-                except UnicodeDecodeError:
-                    decoded_data = decompress(item['data'], 'latin1')
-
+                sub_id = item['idsubtitlefile']
+                decoded_data = decompress(item['data'])
                 if not decoded_data:
-                    logger.error('An error occurred while decoding subtitle'
-                                 'file ID {}.'.format(subfile_id))
+                    logger.error('An error occurred while decoding subtitle ID {}.'.format(sub_id))
                 else:
-                    subtitles_content[subfile_id] = decoded_data
-            return subtitles_content
+                    subtitles_content[sub_id] = decoded_data
+                return subtitles_content
         else:
             raise RuntimeWarning(f'Unable to get subtitles, returned status is {status}')
 
@@ -83,20 +77,39 @@ class OpenSubtitles:
             raise RuntimeWarning(f'Unable to authenticate, returned status is {status}')
 
 
-def decompress(data, encoding):
+def decompress(data: bytes) -> str:
     """
     Convert a base64-compressed subtitles file back to a string.
 
     :param data: the compressed data
-    :param encoding: the encoding of the original file (e.g. utf-8, latin1)
     """
-    try:
-        return zlib.decompress(base64.b64decode(data),
-                               16 + zlib.MAX_WBITS).decode(encoding)
-    except UnicodeDecodeError as e:
-        logger.info(f'Unable to decode content as {encoding}')
-        logger.debug(e)
-        raise
+    fall_back_encodings = ['utf_8_sig', 'utf-8', 'latin1']
+    decoded_string = ''
+    detector_success = False
+    uncompressed_string = zlib.decompress(base64.b64decode(data), 16 + zlib.MAX_WBITS)
+    detector = UniversalDetector()
+    detector.feed(uncompressed_string)
+    detector_success = detector.done
+    detector.close()
+    if detector_success:
+        logger.debug(f"Detected encoding: {detector.result.get('encoding')}")
+        encoding = detector.result.get('encoding')
+        decoded_string = uncompressed_string.decode(encoding=encoding)
+    else:
+        # Trying fall-back encodings
+        for encoding in fall_back_encodings:
+            try:
+                decoded_string = uncompressed_string.decode(encoding=encoding)
+            except UnicodeDecodeError as e:
+                logger.info(f'Unable to decode content as {encoding}')
+                logger.debug(e)
+            else:
+                # No exceptions happened, decoding success
+                break
+        else:
+            # Tried all fall-back encodings, no success
+            raise RuntimeError('Unable to decode subtitle content')
+    return decoded_string
 
 
 def logger_init():
