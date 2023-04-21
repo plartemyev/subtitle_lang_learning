@@ -84,8 +84,6 @@ def decompress(data: bytes) -> str:
     :param data: the compressed data
     """
     fall_back_encodings = ['utf_8_sig', 'utf-8', 'latin1']
-    decoded_string = ''
-    detector_success = False
     uncompressed_string = zlib.decompress(base64.b64decode(data), 16 + zlib.MAX_WBITS)
     detector = UniversalDetector()
     detector.feed(uncompressed_string)
