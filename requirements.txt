@@ -1,4 +1,4 @@
-srt==3.5.2
-PyQt5==5.15.9
-PyQtWebEngine==5.15.6
-chardet>=5.1.0
+srt>=3.5.3
+PyQt6>=6.8.0
+PyQt6-WebEngine>=6.8.0
+chardet>=5.2.0

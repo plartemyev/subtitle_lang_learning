@@ -7,16 +7,16 @@ import traceback
 from pathlib import Path
 from typing import Callable
 
-import PyQt5
+import PyQt6
 import srt
-from PyQt5 import QtCore, QtWidgets, uic
-from PyQt5.QtCore import QDir, QUrl
-from PyQt5.QtGui import QBrush, QColor, QStandardItem, QStandardItemModel
+from PyQt6 import QtCore, QtWidgets, uic
+from PyQt6.QtCore import QDir, QUrl
+from PyQt6.QtGui import QBrush, QColor, QStandardItem, QStandardItemModel
 
 import sub_parser
 
 # For development, it might be easier to work with PyQt ui declared as .py files:
-# python3 -m PyQt5.uic.pyuic ui_resources/main_window.ui -o ui_resources/main_window.py
+# python3 -m PyQt6.uic.pyuic ui_resources/main_window.ui -o ui_resources/main_window.py
 # from ui_resources.main_window import *
 # And ten comment out lines 22-23
 main_window_ui_path = Path(__file__).parent.joinpath('ui_resources').joinpath('main_window.ui').resolve()
@@ -77,7 +77,7 @@ class MainWindow(QtWidgets.QMainWindow):
         if os.path.isfile(_source_file):
             self.loadSubtitlesFromFile()
 
-    def wordInAListSelected(self, item: PyQt5.QtCore.QModelIndex):
+    def wordInAListSelected(self, item: PyQt6.QtCore.QModelIndex):
         self.selected_word = item.data()
         word_count = self.subtitles.get(self.selected_word, {}).get('count', 0)
         full_phrase = self.subtitles.get(self.selected_word, {}).get('sub_text', '')
@@ -209,4 +209,4 @@ if __name__ == '__main__':
     ui_warning_handler.setLevel(logging.WARNING)
     app_logger.addHandler(ui_warning_handler)
 
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
