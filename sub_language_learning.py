@@ -80,8 +80,9 @@ class MainWindow(QtWidgets.QMainWindow):
     def wordInAListSelected(self, item: PyQt5.QtCore.QModelIndex):
         self.selected_word = item.data()
         word_count = self.subtitles.get(self.selected_word, {}).get('count', 0)
-        full_phrase = self.subtitles.get(self.selected_word, {}).get('sub_text', {})
-        phrase_meta = self.subtitles.get(self.selected_word, {}).get('sub_object', {})
+        full_phrase = self.subtitles.get(self.selected_word, {}).get('sub_text', '')
+        # TODO: Display selected word meta in a proper UI element
+        # phrase_meta = self.subtitles.get(self.selected_word, {}).get('sub_object', {})
         self.ui.fullPhraseTextBrowser.setText(f'Word "{self.selected_word}" encountered {word_count} times\n'
                                               f'Context:\n{full_phrase}')
         if self.ui.translateCheckBox.isChecked():
@@ -136,11 +137,10 @@ class MainWindow(QtWidgets.QMainWindow):
             if (not online_subs_available) or len(online_subs_available) == 0:
                 app_logger.warning('No subtitles found')
                 return
-            sub_index = 0
             for sub in online_subs_available:
                 try:
-                    online_sub_id = online_subs_available[sub_index].get('IDSubtitleFile')
-                    online_sub_name = online_subs_available[sub_index].get('SubFileName')
+                    online_sub_id = sub.get('IDSubtitleFile')
+                    online_sub_name = sub.get('SubFileName')
                     raw_sub = sub_parser.download_subtitle(ost_handle, online_sub_id, online_sub_name)
                     sub_generator = srt.parse(raw_sub)
                     self.subtitles = sub_parser.parse_subtitles(sub_generator)
@@ -149,9 +149,8 @@ class MainWindow(QtWidgets.QMainWindow):
                 except Exception as e:
                     app_logger.info('Unable to parse subtitle file. Will try another one if there is some')
                     app_logger.debug('Traceback:\n{}'.format('\n'.join(traceback.format_tb(e.__traceback__))))
-                    sub_index += 1
                     continue
-            if sub_index == len(online_subs_available):
+            else:
                 app_logger.warning(f'Unable to parse any subtitle file out of {len(online_subs_available)}')
                 return  # Unable to decode any subs
             self.populate_words_list()
@@ -171,8 +170,8 @@ class MainWindow(QtWidgets.QMainWindow):
             if self.ui.translateSingleWordRbtn.isChecked():
                 self.onlineTranslate(self.selected_word)
             else:
-                selected_phrase = self.subtitles.get(self.selected_word, {}).get('sub_text', {})
-                self.onlineTranslate(selected_phrase)
+                if selected_phrase := self.subtitles.get(self.selected_word, {}).get('sub_text', ''):
+                    self.onlineTranslate(selected_phrase)
         else:
             self.ui.webEngineView.setUrl(QtCore.QUrl("about:blank"))
             self.ui.webEngineView.setEnabled(False)

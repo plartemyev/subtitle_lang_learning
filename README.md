@@ -1,7 +1,7 @@
 Learning languages by watching movies without translation.
 ======
 
-This app is originally written to help my girlfriend study English.
+This app was originally written as a helper tool to study English.
 I think it is more productive to glance at the list of words used in the movie beforehand
 and look at the translation of unfamiliar ones, instead of stopping in the middle to look up
 some word. App provides a list of unique words with they ubiquity and the context in a phrase.
@@ -16,7 +16,7 @@ NOTES
 -----
 As usual with this kind of software :
 This software is provided "AS-IS", without any guarantees. It should not do
-any harm to your system, but if it does, the author, github, etc... cannot
+any harm to your system, but if it does, the author, GitHub, etc... cannot
 be held responsible. Use at your own risk. You have been warned.
 
 Icons were taken from [KDE/breeze-icons](https://github.com/KDE/breeze-icons)
