@@ -162,11 +162,14 @@ def parse_subtitles(sub_gen: srt.parse, language: str = 'English') -> Dict[str, 
                 continue
             if lemma not in subs_dict.keys():
                 subs_dict[lemma] = {'count': 1, 'pos': token.pos_, 'pos_counts': {token.pos_: 1},
+                                    'occurrences': {token.pos_: [{'sub_object': sub_object, 'sub_text': sub_text}]},
                                     'sub_object': sub_object, 'sub_text': sub_text}
             else:
                 entry = subs_dict[lemma]
                 entry['count'] += 1
                 entry['pos_counts'][token.pos_] = entry['pos_counts'].get(token.pos_, 0) + 1
+                entry['occurrences'].setdefault(token.pos_, []).append(
+                    {'sub_object': sub_object, 'sub_text': sub_text})
                 if entry['pos_counts'][token.pos_] > entry['pos_counts'][entry['pos']]:
                     # keeping the most frequent part of speech in the entry meta
                     entry['pos'] = token.pos_
