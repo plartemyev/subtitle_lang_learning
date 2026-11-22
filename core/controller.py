@@ -58,6 +58,9 @@ class AppController:
             return None
         client = self.subtitles_client_factory()
         try:
+            # anonymous login is mandatory: without a token SearchSubtitles
+            # answers 401 Unauthorized
+            client.login('', '')
             candidates = client.search_subtitles(query, language_code)
         except Exception as e:
             logger.warning('Problem with OpenSubtitles.org communication.', exc_info=e)
