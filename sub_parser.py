@@ -138,6 +138,18 @@ def get_nlp(language: str):
     return _nlp_cache[model_name]
 
 
+def normalize_lemma(token) -> str:
+    return token.lemma_.strip('-').lstrip('.').lower()
+
+
+def annotate_phrase(doc) -> Dict:
+    """Result of the single spaCy pass over a phrase, kept for UI rendering and word lookups."""
+    return {'text': doc.text,
+            'words': [{'text': token.text, 'lemma': normalize_lemma(token), 'pos': token.pos_,
+                       'start': token.idx, 'end': token.idx + len(token.text)}
+                      for token in doc if not token.is_space]}
+
+
 def parse_subtitles(sub_gen: srt.parse, language: str = 'English') -> Dict[str, dict]:
     subs_dict = {}
     sub_texts = []
@@ -151,17 +163,23 @@ def parse_subtitles(sub_gen: srt.parse, language: str = 'English') -> Dict[str, 
             continue
         sub_texts.append(sub_text)
         sub_objects.append(sub_object)
-    for doc, sub_object, sub_text in zip(get_nlp(language).pipe(sub_texts, batch_size=64), sub_objects, sub_texts):
+    unique_texts = list(dict.fromkeys(sub_texts))
+    docs_by_text = {}
+    for text, doc in zip(unique_texts, get_nlp(language).pipe(unique_texts, batch_size=64)):
+        docs_by_text[text] = (doc, annotate_phrase(doc))
+    for sub_object, sub_text in zip(sub_objects, sub_texts):
+        doc, annotation = docs_by_text[sub_text]
+        sub_object.sub_text_annotated = annotation
         for token in doc:
             if token.is_punct or token.is_space:
                 continue
             if token.tag_ == 'POS':
                 # possessive marker: annotate the possessor's entry instead of a standalone word
-                possessor_lemma = doc[token.i - 1].lemma_.strip('-').lstrip('.').lower() if token.i > 0 else ''
+                possessor_lemma = normalize_lemma(doc[token.i - 1]) if token.i > 0 else ''
                 if possessor_lemma in subs_dict.keys():
                     subs_dict[possessor_lemma]['possessive'] = subs_dict[possessor_lemma].get('possessive', 0) + 1
                 continue
-            lemma = token.lemma_.strip('-').lstrip('.').lower()
+            lemma = normalize_lemma(token)
             if not lemma or token.is_digit or "'" in lemma:
                 continue
             if lemma not in subs_dict.keys():
