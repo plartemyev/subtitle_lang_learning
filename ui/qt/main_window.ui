@@ -42,21 +42,6 @@
           <property name="editable">
            <bool>false</bool>
           </property>
-          <item>
-           <property name="text">
-            <string>English</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>German</string>
-           </property>
-          </item>
-          <item>
-           <property name="text">
-            <string>Russian</string>
-           </property>
-          </item>
          </widget>
         </item>
         <item>

@@ -25,9 +25,22 @@ USAGE
 -----
 Simply enter movie name or some TV series identifier, like `mash s11e06`. Or you could select
 a local file with subtitles in SRT format.
-Supported subtitle languages: English, German, Russian - select the language in the UI
-before loading, or pass `--language` to `sub_parser.py`.
+Supported subtitle languages: English (`eng`), German (`deu`), Russian (`rus`) - select the
+language in the UI before loading, or pass `--language` to `cli.py`.
 Words are arranged by they frequency.
+
+ARCHITECTURE
+------------
+All application logic is UI-agnostic and lives in the `core/` package, which must never
+import a UI framework (`PyQt6` or any other). Frontends live on their own:
+
+* `main.py` + `ui/qt/` - PyQt6 desktop frontend (the graphical application);
+* `cli.py` - terminal frontend, same analysis pipeline without any GUI;
+* `core/` - languages registry (neutral ISO-like codes `eng`/`deu`/`rus`), subtitle
+  analyzer, OpenSubtitles.org client, translation helpers and `AppController`
+  orchestrating it all. User-facing events are emitted as structured messages
+  (code + params) and rendered by the frontend, keeping the core free of display
+  text - that is the groundwork for localization and additional UI targets.
 
 REQUIREMENTS
 -------------
@@ -42,6 +55,8 @@ INSTALLATION
 * Try to install requirements also with package manager. And only if some
 requirements are still missing - install them with PIP:  
 **pip3 install --user -r subtitle_lang_learning/requirements.txt**
+* Run the GUI application: `python3 main.py`  
+Or analyze subtitles in the terminal: `python3 cli.py <SRT-file-or-title> --language deu`
 
 ### On Windows:
 * Install x86-64 Python 3.x: From [https://www.python.org/downloads/windows/]  
@@ -51,7 +66,7 @@ When installing, check "Add Python to PATH";
 and selecting "Download ZIP". Then unpack the archive.
 * Install requirements with PIP, E. G. Open a command prompt and execute:  
 **pip3 install --user -r Downloads/subtitle_lang_learning-master/requirements.txt**
-* Run the program by double-clicking on **sub_language_learning.py**
+* Run the program from the command prompt: `python main.py`
 
 ### On macOS 10.9 and later
 * Download and install the latest **macOS 64-bit universal2 installer** from the official website
@@ -59,7 +74,7 @@ and selecting "Download ZIP". Then unpack the archive.
 * Check that you have Git installed [https://github.com/git-guides/install-git/] 
 * Open the command prompt "terminal" and execute `git clone git@github.com:plartemyev/subtitle_lang_learning.git`
 * Then execute `pip3 install --user -r subtitle_lang_learning/requirements.txt`
-* And run the program by executing `python3 subtitle_lang_learning/sub_language_learning.py`
+* And run the program by executing `python3 main.py`
 
 
 TODO
