@@ -2,6 +2,7 @@
 
 import argparse
 import base64
+import html
 import logging
 import os
 import zlib
@@ -30,6 +31,7 @@ spacy_models = {
 _nlp_cache = {}
 
 html_tags_filter = re.compile(r'<.*?>')
+whitespace_filter = re.compile(r'[^\S\n]+')
 www_spam_filter = re.compile(r'www\.\w+', re.I)
 
 
@@ -141,7 +143,9 @@ def parse_subtitles(sub_gen: srt.parse, language: str = 'English') -> Dict[str, 
     sub_texts = []
     sub_objects = []
     for sub_object in sub_gen:
-        sub_text = html_tags_filter.sub('', sub_object.content)
+        # strip tags first, so escaped literals like &lt;b&gt; survive as visible text
+        sub_text = whitespace_filter.sub(
+            ' ', html.unescape(html_tags_filter.sub('', sub_object.content))).strip()
         if www_spam_filter.search(sub_text):
             # Skipping whole phrase as spam
             continue
