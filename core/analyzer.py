@@ -20,6 +20,11 @@ logger = logging.getLogger(__name__)
 html_tags_filter = re.compile(r'<.*?>')
 whitespace_filter = re.compile(r'[^\S\n]+')
 www_spam_filter = re.compile(r'www\.\w+', re.I)
+# A hyphen glued to the last character of a line marks a word wrapped across
+# cues or subtitle lines ('wants to know-'); it is never part of the word.
+# Standalone dashes ('wait - and listen'), leading dialogue dashes ('- Hello')
+# and inner compound hyphens ('well-known') do not match and are kept.
+line_wrap_hyphen_filter = re.compile(r'(\S)-(?=\s|$)')
 
 _nlp_cache = {}
 
@@ -36,8 +41,9 @@ def normalize_lemma(token) -> str:
 
 def sanitize_phrase_text(raw_content: str) -> str:
     """Strip HTML tags, unescape entities and collapse whitespace of a phrase."""
-    return whitespace_filter.sub(
+    text = whitespace_filter.sub(
         ' ', html.unescape(html_tags_filter.sub('', raw_content))).strip()
+    return line_wrap_hyphen_filter.sub(r'\1', text)
 
 
 def _annotate_words(doc) -> list:
