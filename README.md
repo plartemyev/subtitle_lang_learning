@@ -29,7 +29,7 @@ Words are arranged by they frequency.
 
 REQUIREMENTS
 -------------
-App requires **python>=3.8**, **PyQt6**, **PyQt6-WebEngine**, **chardet** and **srt**.
+App requires **python>=3.8**, **PyQt6**, **PyQt6-WebEngine**, **chardet**, **srt** and **nltk**.
 
 INSTALLATION
 ------------
