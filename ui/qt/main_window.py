@@ -38,10 +38,17 @@ NATIVE_LANGUAGE_NAMES = {
     'en': 'English',
     'ru': 'Русский',
 }
+# Same rationale as the language menu title: locale-independent label.
+SYMBOLS_MENU_TITLE = 'Symbols · Символы · Symbole'
 
 SETTINGS_ORGANIZATION = 'subtitle_lang_learning'
 SETTINGS_APPLICATION = 'gui'
 SETTINGS_LANGUAGE_KEY = 'ui_language'
+SETTINGS_SYMBOL_SYSTEM_KEY = 'symbol_system'
+# Whose Montessori tradition paints the symbols: the interface language's
+# (the student's) or the subtitle language's (the language being learned).
+SYMBOL_SYSTEM_UI = 'ui'
+SYMBOL_SYSTEM_SUBTITLE = 'subtitle'
 
 # The translation provider rate-limits by IP: coalesce rapid word clicks and
 # radio switches into a single request for the last selection.
@@ -85,12 +92,14 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def initUI(self):
         self._build_language_menu()
+        self._build_symbol_system_menu()
         self.ui.fileSelectBtn.clicked.connect(self.fileSelectionDialog)
         self.ui.translationOptionsGroup.buttonClicked.connect(self.translationOptionsChanged)
         self.ui.translateCheckBox.clicked.connect(self.translationOptionsChanged)
         self.ui.filePathInput.editingFinished.connect(self.sourceFileProvided)
         self.ui.onlineSearchTitle.editingFinished.connect(self.loadSubtitlesFromInternet)
         self.ui.onlineSearchBtn.clicked.connect(self.loadSubtitlesFromInternet)
+        self.ui.subtitlesLanguageSelect.currentIndexChanged.connect(self._subtitle_language_changed)
         self.ui.translationTabWidget.tabBarClicked.connect(self.translationTabClicked)
         self._translate_timer = QtCore.QTimer(self)
         self._translate_timer.setSingleShot(True)
@@ -99,6 +108,9 @@ class MainWindow(QtWidgets.QMainWindow):
         for widget_name in DETAIL_WIDGET_NAMES:
             getattr(self.ui, widget_name).setVisible(False)
         self._retranslate_ui()
+        # after _retranslate_ui: in subtitle mode the system resolves through
+        # the language selector, which is only populated by now
+        self._apply_symbol_system()
         self.show()
 
     def _build_language_menu(self):
@@ -120,7 +132,52 @@ class MainWindow(QtWidgets.QMainWindow):
             return
         _app_settings().setValue(SETTINGS_LANGUAGE_KEY, language_code)
         i18n.setup(language_code)
+        self._apply_symbol_system()
         self._retranslate_ui()
+
+    def _build_symbol_system_menu(self):
+        symbols_menu = self.menuBar().addMenu(SYMBOLS_MENU_TITLE)
+        actions_group = QActionGroup(self)
+        self._symbol_system_actions = {}
+        for mode, message_code in ((SYMBOL_SYSTEM_UI, 'symbol_system_ui'),
+                                   (SYMBOL_SYSTEM_SUBTITLE, 'symbol_system_subtitle')):
+            action = QAction(i18n.tr(message_code), self)
+            action.setCheckable(True)
+            action.triggered.connect(
+                lambda checked, mode_value=mode: self._set_symbol_system_mode(mode_value))
+            actions_group.addAction(action)
+            symbols_menu.addAction(action)
+            self._symbol_system_actions[mode] = action
+
+    def _set_symbol_system_mode(self, mode: str):
+        if mode == _app_settings().value(SETTINGS_SYMBOL_SYSTEM_KEY, SYMBOL_SYSTEM_UI):
+            return
+        _app_settings().setValue(SETTINGS_SYMBOL_SYSTEM_KEY, mode)
+        self._apply_symbol_system()
+        if self.selected_word:
+            self._render_word_meta()
+
+    def _apply_symbol_system(self):
+        """Resolve and activate the symbol system for the current knob mode."""
+        mode = _app_settings().value(SETTINGS_SYMBOL_SYSTEM_KEY, SYMBOL_SYSTEM_UI)
+        if mode == SYMBOL_SYSTEM_SUBTITLE and self.currentLanguageCode() is not None:
+            system = grammar.system_for_subtitle_language(self.currentLanguageCode())
+        else:
+            system = grammar.system_for_ui_locale(i18n.active_locale)
+        grammar.set_active_system(system)
+        for mode_value, action in self._symbol_system_actions.items():
+            action.setChecked(mode_value == mode)
+
+    def _subtitle_language_changed(self):
+        # In subtitle mode the painted tradition follows the language selector;
+        # repopulation in _retranslate_ui keeps signals blocked, so only real
+        # user changes land here.
+        if _app_settings().value(SETTINGS_SYMBOL_SYSTEM_KEY, SYMBOL_SYSTEM_UI) \
+                != SYMBOL_SYSTEM_SUBTITLE:
+            return
+        self._apply_symbol_system()
+        if self.selected_word:
+            self._render_word_meta()
 
     def _retranslate_ui(self):
         self.setWindowTitle(i18n.tr('window_title'))
@@ -134,6 +191,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.translateCheckBox.setText(i18n.tr('checkbox_translate'))
         self.ui.translateSingleWordRbtn.setText(i18n.tr('radio_single_word'))
         self.ui.translatePhraseRbtn.setText(i18n.tr('radio_whole_phrase'))
+        self._symbol_system_actions[SYMBOL_SYSTEM_UI].setText(i18n.tr('symbol_system_ui'))
+        self._symbol_system_actions[SYMBOL_SYSTEM_SUBTITLE].setText(i18n.tr('symbol_system_subtitle'))
         self.ui.contextLabel.setText(i18n.tr('context_label'))
         self.ui.legendLabel.setText(i18n.tr('legend_in_phrase'))
         self.ui.legendHint.setText(i18n.tr('legend_hint'))
@@ -205,7 +264,8 @@ class MainWindow(QtWidgets.QMainWindow):
         else:
             suffix = grammar.message_suffix(category)
             self.ui.selectedPosChip.set_data(category, i18n.tr('pos_name_' + suffix))
-            self.ui.selectedPosChip.setToolTip(i18n.tr('pos_tip_' + suffix))
+            self.ui.selectedPosChip.setToolTip(
+                i18n.tr('pos_tip_' + grammar.tip_message_suffix(category)))
             subline = self._entry_subline(entry, language)
         self.ui.selectedWordSubline.setText(subline)
         self.ui.selectedWordSubline.setVisible(bool(subline))
@@ -299,7 +359,7 @@ class MainWindow(QtWidgets.QMainWindow):
             suffix = grammar.message_suffix(category)
             chip = PosChip()
             chip.set_data(category, i18n.tr('pos_name_' + suffix))
-            chip.setToolTip(i18n.tr('pos_tip_' + suffix))
+            chip.setToolTip(i18n.tr('pos_tip_' + grammar.tip_message_suffix(category)))
             layout.addWidget(chip)
 
     def populate_words_list(self):

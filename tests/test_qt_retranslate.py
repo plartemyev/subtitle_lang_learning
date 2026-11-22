@@ -99,6 +99,11 @@ class RetranslateTest(unittest.TestCase):
         self.assertEqual(self.window.ui.fileSelectBtn.text(), 'SRT-Datei wählen')
         self.assertEqual(self.window.ui.subtitlesLanguageSelect.itemText(2), 'Russisch')
 
+    def test_menu_switch_retranslates_symbol_items(self):
+        self.window._language_actions['ru'].trigger()
+        self.assertEqual(self.window._symbol_system_actions['ui'].text(), 'По языку интерфейса')
+        self.assertEqual(self.window._symbol_system_actions['subtitle'].text(), 'По языку субтитров')
+
     def test_stored_override_applied_on_restart(self):
         # A fresh MainWindow without an explicit language reads the stored
         # override (the "restart after switching" scenario).
@@ -107,6 +112,46 @@ class RetranslateTest(unittest.TestCase):
         self.addCleanup(window.close)
         self.assertEqual(window.windowTitle(), 'Изучение языков с субтитрами')
         self.assertTrue(window._language_actions['ru'].isChecked())
+
+
+class SymbolSystemSettingTest(unittest.TestCase):
+    """The Symbols-menu knob: whose Montessori tradition paints the icons."""
+
+    def setUp(self):
+        global _test_settings
+        _test_settings = None
+        TEST_SETTINGS_PATH.unlink(missing_ok=True)
+        patcher = unittest.mock.patch.object(main_window, '_app_settings', _test_settings_factory)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.addCleanup(main_window.grammar.set_active_system, 'en')
+
+    def test_default_follows_interface_language(self):
+        window = main_window.MainWindow(language_code='de')
+        self.addCleanup(window.close)
+        self.assertEqual(main_window.grammar.active_system(), 'de')
+        self.assertTrue(window._symbol_system_actions['ui'].isChecked())
+
+    def test_subtitle_mode_follows_language_selector_live(self):
+        _test_settings_factory().setValue('symbol_system', 'subtitle')
+        window = main_window.MainWindow(language_code='ru')
+        self.addCleanup(window.close)
+        # default selector item is English subtitles: anglo system despite ru UI
+        self.assertEqual(main_window.grammar.active_system(), 'en')
+        deu_index = window.ui.subtitlesLanguageSelect.findData('deu')
+        window.ui.subtitlesLanguageSelect.setCurrentIndex(deu_index)
+        self.assertEqual(main_window.grammar.active_system(), 'de')
+
+    def test_mode_switch_persists_and_updates_actions(self):
+        window = main_window.MainWindow(language_code='en')
+        self.addCleanup(window.close)
+        window._symbol_system_actions['subtitle'].trigger()
+        self.assertEqual(_test_settings_factory().value('symbol_system'), 'subtitle')
+        self.assertTrue(window._symbol_system_actions['subtitle'].isChecked())
+        self.assertFalse(window._symbol_system_actions['ui'].isChecked())
+        window._symbol_system_actions['ui'].trigger()
+        self.assertEqual(_test_settings_factory().value('symbol_system'), 'ui')
+        self.assertTrue(window._symbol_system_actions['ui'].isChecked())
 
 
 if __name__ == '__main__':

@@ -17,6 +17,7 @@ from PyQt6.QtCore import QPoint, Qt
 from PyQt6.QtGui import QHelpEvent, QKeyEvent
 
 from core.languages import LANGUAGES
+from ui.qt import grammar
 from ui.qt.grammar import (Category, MESSAGE_SUFFIXES, MORPH_FEATURE_VALUES, SYMBOL_COLORS,
                            SYMBOL_SIZES, UNDERLINES, WORD_COLORS, category_for, morphology_line,
                            parse_morph)
@@ -89,6 +90,43 @@ class CategoryDisplayDataTest(unittest.TestCase):
         self.assertNotEqual(WORD_COLORS[Category.VERB], SYMBOL_COLORS[Category.VERB])
 
 
+class SymbolSystemTest(unittest.TestCase):
+    """Per-tradition symbol variants and the resolution helpers behind the knob."""
+
+    def setUp(self):
+        self.addCleanup(grammar.set_active_system, grammar.active_system())
+
+    def test_reference_system_renders_without_variants(self):
+        grammar.set_active_system('en')
+        self.assertEqual(grammar.variant_suffix(Category.INTERJECTION), '')
+        self.assertEqual(grammar.variant_suffix(Category.PRONOUN), '')
+        self.assertEqual(grammar.tip_message_suffix(Category.INTERJECTION), 'intj')
+        self.assertEqual(grammar.tip_message_suffix(Category.PRONOUN), 'pron')
+
+    def test_ru_and_de_systems_deviate_where_traditions_differ(self):
+        for system in ('ru', 'de'):
+            grammar.set_active_system(system)
+            self.assertEqual(grammar.variant_suffix(Category.INTERJECTION), 'exclaim')
+            self.assertEqual(grammar.variant_suffix(Category.PRONOUN), 'plain')
+            self.assertEqual(grammar.tip_message_suffix(Category.INTERJECTION), 'intj_exclaim')
+            self.assertEqual(grammar.tip_message_suffix(Category.PRONOUN), 'pron_plain')
+            # the agreed categories stay untouched
+            self.assertEqual(grammar.variant_suffix(Category.NOUN), '')
+            self.assertEqual(grammar.tip_message_suffix(Category.VERB), 'verb')
+
+    def test_unknown_system_falls_back_to_reference(self):
+        grammar.set_active_system('fr')
+        self.assertEqual(grammar.active_system(), 'en')
+
+    def test_resolution_helpers(self):
+        self.assertEqual(grammar.system_for_ui_locale('ru'), 'ru')
+        self.assertEqual(grammar.system_for_ui_locale('zz'), 'en')
+        self.assertEqual(grammar.system_for_subtitle_language('eng'), 'en')
+        self.assertEqual(grammar.system_for_subtitle_language('deu'), 'de')
+        self.assertEqual(grammar.system_for_subtitle_language('rus'), 'ru')
+        self.assertEqual(grammar.system_for_subtitle_language('xyz'), 'en')
+
+
 class MorphologyLineTest(unittest.TestCase):
     def test_parse_morph_splits_pairs(self):
         self.assertEqual(parse_morph('Number=Sing|Person=3|Tense=Pres'),
@@ -123,6 +161,18 @@ class PhraseViewWidgetTest(unittest.TestCase):
         view.resize(600, 120)
         view.show()
         self.assertFalse(view.grab().isNull())
+
+    def test_render_passes_for_every_symbol_system(self):
+        tokens = [TokenView(text=f'w{category.value}', category=category)
+                  for category in Category if category is not Category.UNMARKED]
+        for system in ('en', 'ru', 'de'):
+            grammar.set_active_system(system)
+            view = PhraseView()
+            view.set_tokens(tokens)
+            view.resize(600, 120)
+            view.show()
+            self.assertFalse(view.grab().isNull(), system)
+        grammar.set_active_system('en')
 
     def test_tooltip_event_shows_word_tooltip(self):
         view = PhraseView()

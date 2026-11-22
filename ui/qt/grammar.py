@@ -208,23 +208,77 @@ def message_suffix(category: Category):
     return MESSAGE_SUFFIXES.get(category)
 
 
+# Grammar-symbol systems follow the Montessori tradition of a locale. The
+# anglo set is the reference rendering; other systems deviate only where the
+# traditions genuinely differ (interjection: diamond vs classical exclamation
+# keyhole, pronoun: tripartite vs plain pyramid). Colors, sizes and underline
+# styles are agreed across the modern material sets and stay shared.
+INTERJECTION_EXCLAIM = 'exclaim'
+PRONOUN_PLAIN = 'plain'
+
+SYSTEM_VARIANTS = {
+    'en': {},
+    'ru': {'intj': INTERJECTION_EXCLAIM, 'pron': PRONOUN_PLAIN},
+    'de': {'intj': INTERJECTION_EXCLAIM, 'pron': PRONOUN_PLAIN},
+}
+
+# Subtitle language (core.languages codes) -> symbol system.
+SUBTITLE_LANGUAGE_SYSTEMS = {'eng': 'en', 'deu': 'de', 'rus': 'ru'}
+
+_active_system = 'en'
+
+
+def set_active_system(system: str) -> None:
+    """Select whose Montessori tradition paints the symbols ('en'/'ru'/'de')."""
+    global _active_system
+    _active_system = system if system in SYSTEM_VARIANTS else 'en'
+
+
+def active_system() -> str:
+    return _active_system
+
+
+def system_for_ui_locale(locale_code: str) -> str:
+    """UI locales double as symbol systems; unknown locales get the reference."""
+    return locale_code if locale_code in SYSTEM_VARIANTS else 'en'
+
+
+def system_for_subtitle_language(language_code: str) -> str:
+    return SUBTITLE_LANGUAGE_SYSTEMS.get(language_code, 'en')
+
+
+def variant_suffix(category: Category) -> str:
+    """Per-system drawing variant of a category ('exclaim', 'plain') or ''."""
+    return SYSTEM_VARIANTS.get(_active_system, {}).get(MESSAGE_SUFFIXES.get(category, ''), '')
+
+
+def tip_message_suffix(category: Category) -> str:
+    """Message-code suffix of the variant-aware 'pos_tip_<suffix>' message."""
+    suffix = message_suffix(category)
+    variant = variant_suffix(category)
+    return f'{suffix}_{variant}' if suffix and variant else suffix
+
+
 def draw_symbol(painter, center_x: float, top_y: float, category: Category):
     """Paint the category symbol with its top edge at ``top_y``; centered on x."""
     size = SYMBOL_SIZES[category]
     if size <= 0:
         return
     color = SYMBOL_COLORS[category]
+    variant = variant_suffix(category)
     if category == Category.PREPOSITION:
         _draw_crescent(painter, center_x, top_y, size, color)
     elif category == Category.PROP_NOUN:
         _draw_starred_pyramid(painter, center_x, top_y, size, color)
-    elif category == Category.PRONOUN:
+    elif category == Category.PRONOUN and variant != PRONOUN_PLAIN:
         _draw_tripartite(painter, QRectF(center_x - size / 2, top_y, size, size), color)
+    elif category == Category.INTERJECTION and variant == INTERJECTION_EXCLAIM:
+        _draw_exclaim(painter, center_x, top_y, size, color)
     else:
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(color)
         rect = QRectF(center_x - size / 2, top_y, size, size)
-        if category in (Category.NOUN, Category.ARTICLE, Category.ADJECTIVE):
+        if category in (Category.NOUN, Category.ARTICLE, Category.ADJECTIVE, Category.PRONOUN):
             painter.fillPath(_pyramid_path(rect), color)
         elif category in (Category.VERB, Category.ADVERB, Category.PARTICLE):
             painter.drawEllipse(rect)
@@ -293,3 +347,22 @@ def _draw_tripartite(painter, rect: QRectF, color: QColor):
         half = fraction * rect.width() / 2 - rect.width() * 0.06
         y = rect.top() + rect.height() * fraction
         painter.drawLine(QPointF(center_x - half, y), QPointF(center_x + half, y))
+
+
+def _draw_exclaim(painter, center_x: float, top_y: float, size: float, color: QColor):
+    """Classical interjection form (ru/de systems): circle above a tapering
+    point - reads as the golden exclamation mark / keyhole of the albums."""
+    painter.save()
+    painter.setPen(Qt.PenStyle.NoPen)
+    painter.setBrush(color)
+    circle_size = size * 0.58
+    painter.drawEllipse(QRectF(center_x - circle_size / 2, top_y, circle_size, circle_size))
+    base_y = top_y + circle_size * 0.82
+    base_half = size * 0.34
+    path = QPainterPath()
+    path.moveTo(center_x - base_half, base_y)
+    path.lineTo(center_x + base_half, base_y)
+    path.lineTo(center_x, top_y + size)
+    path.closeSubpath()
+    painter.fillPath(path, color)
+    painter.restore()

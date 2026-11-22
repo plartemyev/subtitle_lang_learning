@@ -89,6 +89,13 @@ msgstr "&Только одно слово"
 msgid "radio_whole_phrase"
 msgstr "Вся фраза"
 
+#. Symbols menu: whose Montessori tradition paints the grammar icons.
+msgid "symbol_system_ui"
+msgstr "По языку интерфейса"
+
+msgid "symbol_system_subtitle"
+msgstr "По языку субтитров"
+
 msgid "tab_translate_online"
 msgstr "Перевод с помощью онлайн-сервисов"
 
@@ -175,6 +182,10 @@ msgstr "Монтессори: зелёный полумесяц — дуга-м�
 msgid "pos_tip_pron"
 msgstr "Монтессори: фиолетовая пирамида, разделённая на три части."
 
+#. Undivided pronoun pyramid of the ru/de symbol systems.
+msgid "pos_tip_pron_plain"
+msgstr "Монтессори: фиолетовая пирамида — близкая родня чёрной пирамиды."
+
 msgid "pos_tip_adv"
 msgstr "Монтессори: маленький оранжевый кружок — луна при солнце-глаголе."
 
@@ -183,6 +194,10 @@ msgstr "Монтессори: розовая полоска — тонкая п�
 
 msgid "pos_tip_intj"
 msgstr "Монтессори: золотой ромб — яркая искра внезапного чувства."
+
+#. Classical keyhole/exclamation interjection of the ru/de symbol systems.
+msgid "pos_tip_intj_exclaim"
+msgstr "Монтессори: золотой восклицательный знак — вспышка внезапного чувства."
 
 #. Word tooltip line inside the context phrase.
 msgid "token_lemma_line"
