@@ -26,8 +26,8 @@ msgstr "Kommunikationsproblem mit OpenSubtitles.org."
 
 msgid "no_parseable_subtitles"
 msgid_plural "no_parseable_subtitles_plural"
-msgstr[0] "{count} Untertitel-Datei konnte nicht verarbeitet werden"
-msgstr[1] "{count} Untertitel-Dateien konnten nicht verarbeitet werden"
+msgstr[0] "Die Untertitel-Datei konnte nicht verarbeitet werden"
+msgstr[1] "Keine der {count} Untertitel-Dateien konnte verarbeitet werden"
 
 #. Meta line in the word details pane: entry.count occurrences of the word.
 msgid "word_meta_line"
@@ -161,7 +161,7 @@ msgid "pos_tip_verb"
 msgstr "Eine Handlung oder ein Zustand: 'laufen', 'sein', 'wissen'. Montessori: die rote Kugel — sie bewegt sich, wie die Sonne."
 
 msgid "pos_tip_aux"
-msgstr "Ein Helfer neben dem Hauptverb: 'sein', 'haben'. Erweiterung: die Kugel des Verbs, hohl."
+msgstr "Ein Helfer neben dem Hauptverb: 'sein', 'haben'. Erweiterung: die hohle Kugel des Verbs."
 
 msgid "pos_tip_part"
 msgstr "Ein kleines Wort mit fester grammatischer Aufgabe: 'zu' vor dem Verb. Erweiterung: eine winzige Verb-Kugel."
@@ -337,7 +337,7 @@ msgid "morph_prontype_ind"
 msgstr "indefinit"
 
 msgid "morph_prontype_tot"
-msgstr "total"
+msgstr "Totalpronomen"
 
 msgid "morph_prontype_neg"
 msgstr "negativ"

@@ -26,7 +26,7 @@ msgstr "Проблема связи с OpenSubtitles.org."
 
 msgid "no_parseable_subtitles"
 msgid_plural "no_parseable_subtitles_plural"
-msgstr[0] "Не удалось разобрать ни один из {count} файла субтитров"
+msgstr[0] "Не удалось разобрать {count} файл субтитров"
 msgstr[1] "Не удалось разобрать ни один из {count} файлов субтитров"
 msgstr[2] "Не удалось разобрать ни один из {count} файлов субтитров"
 
@@ -44,9 +44,9 @@ msgstr ", {pos}"
 #. Number of possessive usages, appended to the word meta line.
 msgid "possessive_suffix"
 msgid_plural "possessive_suffix_plural"
-msgstr[0] ", {count} притяжательная"
-msgstr[1] ", {count} притяжательные"
-msgstr[2] ", {count} притяжательных"
+msgstr[0] ", {count} притяжательная форма"
+msgstr[1] ", {count} притяжательные формы"
+msgstr[2] ", {count} притяжательных форм"
 
 msgid "context_label"
 msgstr "Контекст:"
@@ -149,13 +149,13 @@ msgstr "междометие"
 
 #. Pedagogical grammar symbols (Montessori): per-category explanations.
 msgid "pos_tip_noun"
-msgstr "Человек, место или предмет. Монтессори: пирамида — устойчивая и твёрдая, вещи существуют."
+msgstr "Человек, место или предмет. Монтессори: пирамида — прочная и устойчивая: вещи существуют."
 
 msgid "pos_tip_propn"
 msgstr "Имя конкретного человека, места или предмета. Отмечено звёздочкой над пирамидой."
 
 msgid "pos_tip_art"
-msgstr "Вводит существительное: 'a', 'the'. Монтессори: маленький спутник пирамиды."
+msgstr "Сопровождает существительное: 'a', 'the'. Монтессори: маленький спутник пирамиды."
 
 msgid "pos_tip_adj"
 msgstr "Описывает существительное: 'хороший', 'первый'. Монтессори: тёмно-синий треугольник рядом с пирамидой."
@@ -164,13 +164,13 @@ msgid "pos_tip_verb"
 msgstr "Действие или состояние: 'бежать', 'быть', 'знать'. Монтессори: красный шар — он движется, как солнце."
 
 msgid "pos_tip_aux"
-msgstr "Помощник рядом с основным глаголом: 'быть', 'иметь'. Расширение: шар глагола, полый."
+msgstr "Помощник при основном глаголе: 'быть', 'иметь'. Расширение: полый шар глагола."
 
 msgid "pos_tip_part"
 msgstr "Маленькое слово с фиксированной грамматической ролью: 'to' перед глаголом. Расширение: крошечный шар глагола."
 
 msgid "pos_tip_adp"
-msgstr "Связывает существительное с предложением: 'в', 'из', 'как'. Монтессори: зелёный полумесяц — мост между словами."
+msgstr "Связывает существительное с другими словами в предложении: 'в', 'из', 'как'. Монтессори: зелёный полумесяц — мост между словами."
 
 msgid "pos_tip_pron"
 msgstr "Заменяет собой существительное: 'ты', 'кто', 'он'. Монтессори: треугольник из трёх частей."
@@ -194,7 +194,7 @@ msgstr "также {items}"
 
 #. Legend label above the symbol chips of the context phrase.
 msgid "legend_in_phrase"
-msgstr "Во фразе"
+msgstr "В этой фразе"
 
 #. Legend hint for the per-word tooltips.
 msgid "legend_hint"
