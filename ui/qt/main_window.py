@@ -40,6 +40,10 @@ SETTINGS_ORGANIZATION = 'subtitle_lang_learning'
 SETTINGS_APPLICATION = 'gui'
 SETTINGS_LANGUAGE_KEY = 'ui_language'
 
+# The translation provider rate-limits by IP: coalesce rapid word clicks and
+# radio switches into a single request for the last selection.
+TRANSLATE_DEBOUNCE_MS = 400
+
 
 def _app_settings() -> QtCore.QSettings:
     """Persistent UI settings; module-level to stay injectable in tests."""
@@ -80,6 +84,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.onlineSearchTitle.editingFinished.connect(self.loadSubtitlesFromInternet)
         self.ui.onlineSearchBtn.clicked.connect(self.loadSubtitlesFromInternet)
         self.ui.translationTabWidget.tabBarClicked.connect(self.translationTabClicked)
+        self._translate_timer = QtCore.QTimer(self)
+        self._translate_timer.setSingleShot(True)
+        self._translate_timer.timeout.connect(self._translate_current_selection)
         self._retranslate_ui()
         self.show()
 
@@ -160,6 +167,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def wordInAListSelected(self, index: PyQt6.QtCore.QModelIndex):
         self.selected_word = index.data()
         self._render_word_meta()
+        self._schedule_online_translation()
 
     def _render_word_meta(self):
         if not self.selected_word:
@@ -218,23 +226,37 @@ class MainWindow(QtWidgets.QMainWindow):
     def onlineTranslate(self, text: str):
         self.ui.webEngineView.load(QUrl(translate.build_translate_url(text)))
 
+    def _selected_phrase(self) -> str:
+        entry = None
+        if self.controller.current_result is not None:
+            entry = self.controller.current_result.words.get(self.selected_word)
+        if entry is not None and entry.context_phrase:
+            return entry.context_phrase.text
+        return ''
+
+    def _schedule_online_translation(self):
+        """Restart the debounce so only the last selection gets translated."""
+        if not self.ui.translateCheckBox.isChecked():
+            return
+        self._translate_timer.start(TRANSLATE_DEBOUNCE_MS)
+
+    def _translate_current_selection(self):
+        if self.ui.translateSingleWordRbtn.isChecked():
+            text = self.selected_word
+        else:
+            text = self._selected_phrase()
+        if text:
+            self.onlineTranslate(text)
+
     def translationOptionsChanged(self):
         if self.ui.translateCheckBox.isChecked():
             self.ui.translationTabWidget.setEnabled(True)
             self.ui.webEngineView.setEnabled(True)
             self.ui.translateSingleWordRbtn.setEnabled(True)
             self.ui.translatePhraseRbtn.setEnabled(True)
-            if self.ui.translateSingleWordRbtn.isChecked():
-                self.onlineTranslate(self.selected_word)
-            else:
-                selected_phrase = ''
-                if self.controller.current_result is not None:
-                    entry = self.controller.current_result.words.get(self.selected_word)
-                    if entry is not None and entry.context_phrase:
-                        selected_phrase = entry.context_phrase.text
-                if selected_phrase:
-                    self.onlineTranslate(selected_phrase)
+            self._schedule_online_translation()
         else:
+            self._translate_timer.stop()
             self.ui.webEngineView.setUrl(QtCore.QUrl("about:blank"))
             self.ui.webEngineView.setEnabled(False)
             self.ui.translationTabWidget.setEnabled(False)
