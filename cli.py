@@ -4,10 +4,12 @@ import argparse
 import logging
 import os
 import sys
+from typing import Optional
 
 from core import analyzer
 from core.controller import AppController
 from core.languages import LANGUAGES
+from ui import i18n
 
 
 def init_logging(debug: bool) -> None:
@@ -20,13 +22,29 @@ def init_logging(debug: bool) -> None:
     root_logger.setLevel(logging.DEBUG if debug else logging.INFO)
 
 
+def ui_language_from_argv(argv) -> Optional[str]:
+    """Peek at --ui-language before argparse: translations need the locale
+    already active while the help texts are built."""
+    for position, arg in enumerate(argv):
+        if arg == '--ui-language' and position + 1 < len(argv):
+            return argv[position + 1]
+        if arg.startswith('--ui-language='):
+            return arg.split('=', 1)[1]
+    return None
+
+
 def main() -> int:
+    i18n.setup(ui_language_from_argv(sys.argv))
     cli = argparse.ArgumentParser()
     cli.add_argument('subtitle', type=str,
-                     help='path to an SRT file, or a movie/series title to search online')
+                     help=i18n.tr('cli_subtitle_help'))
     cli.add_argument('--language', type=str, default='eng', choices=sorted(LANGUAGES),
-                     help='subtitle language code (default: %(default)s)')
-    cli.add_argument('--debug', action='store_true')
+                     help=i18n.tr('cli_language_help'))
+    cli.add_argument('--ui-language', type=str, choices=sorted(i18n.LOCALES),
+                     default=i18n.active_locale,
+                     help=i18n.tr('cli_ui_language_help'))
+    cli.add_argument('--debug', action='store_true',
+                     help=i18n.tr('cli_debug_help'))
     cli_args = cli.parse_args()
     init_logging(cli_args.debug)
 
@@ -37,7 +55,7 @@ def main() -> int:
         if result is None:
             return 1
     for word, entry in result.words.items():
-        print(f'Word: {word} \t Count: {entry.count}')
+        print(i18n.tr('cli_word_line', word=word, count=entry.count))
     return 0
 
 

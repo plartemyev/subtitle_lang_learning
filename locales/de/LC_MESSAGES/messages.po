@@ -1,0 +1,108 @@
+# German UI catalog. Message codes (msgids) are shared with all locales;
+# see locales/en/LC_MESSAGES/messages.po for reference texts and comments.
+msgid ""
+msgstr ""
+"Project-Id-Version: subtitle_lang_learning\n"
+"PO-Revision-Date: 2026-11-22 12:00+0000\n"
+"Last-Translator: Pavel Artemev <a@pavel.bz>\n"
+"Language-Team: Pavel Artemev <a@pavel.bz>\n"
+"Language: de\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "warning_title"
+msgstr "WARNUNG"
+
+msgid "unable_to_load_file"
+msgstr "Untertitel konnten nicht aus Datei {path} geladen werden"
+
+msgid "no_subtitles_found"
+msgstr "Keine Untertitel gefunden"
+
+msgid "subtitles_service_error"
+msgstr "Kommunikationsproblem mit OpenSubtitles.org."
+
+msgid "no_parseable_subtitles"
+msgid_plural "no_parseable_subtitles_plural"
+msgstr[0] "{count} Untertitel-Datei konnte nicht verarbeitet werden"
+msgstr[1] "{count} Untertitel-Dateien konnten nicht verarbeitet werden"
+
+#. Meta line in the word details pane: entry.count occurrences of the word.
+msgid "word_meta_line"
+msgid_plural "word_meta_line_plural"
+msgstr[0] "Wort „{word}“ trat {count}-mal auf"
+msgstr[1] "Wort „{word}“ trat {count}-mal auf"
+
+#. spaCy POS tag, lowercased, appended to the word meta line.
+msgid "pos_suffix"
+msgstr ", {pos}"
+
+#. Number of possessive usages, appended to the word meta line.
+msgid "possessive_suffix"
+msgid_plural "possessive_suffix_plural"
+msgstr[0] ", {count} Possessivform"
+msgstr[1] ", {count} Possessivformen"
+
+msgid "context_label"
+msgstr "Kontext:"
+
+#. Display names of the subtitle languages (core.languages codes).
+msgid "language_name_eng"
+msgstr "Englisch"
+
+msgid "language_name_deu"
+msgstr "Deutsch"
+
+msgid "language_name_rus"
+msgstr "Russisch"
+
+msgid "window_title"
+msgstr "Sprachen lernen mit Untertiteln"
+
+msgid "tab_online_source"
+msgstr "Aus Online-Quellen laden"
+
+msgid "tab_file_source"
+msgstr "Aus SRT-Datei laden"
+
+msgid "placeholder_subtitle_file"
+msgstr "Untertitel-Datei"
+
+msgid "button_select_srt"
+msgstr "SRT-Datei wählen"
+
+msgid "button_search"
+msgstr "Suchen"
+
+msgid "checkbox_translate"
+msgstr "Übersetzen"
+
+#. '&' precedes the Qt keyboard mnemonic.
+msgid "radio_single_word"
+msgstr "Nur &einzelnes Wort"
+
+msgid "radio_whole_phrase"
+msgstr "Ganzer Satz"
+
+msgid "tab_translate_online"
+msgstr "Mit Online-Diensten übersetzen"
+
+msgid "tab_translate_local"
+msgstr "Lokal übersetzen"
+
+msgid "cli_word_line"
+msgstr "Wort: {word} \t Anzahl: {count}"
+
+msgid "cli_subtitle_help"
+msgstr "Pfad zu einer SRT-Datei oder Film-/Serientitel für die Online-Suche"
+
+msgid "cli_language_help"
+msgstr "Sprachcode der Untertitel (Standard: %(default)s)"
+
+msgid "cli_debug_help"
+msgstr "Debug-Ausgaben anzeigen"
+
+msgid "cli_ui_language_help"
+msgstr "Sprachcode der Oberfläche (Standard: %(default)s)"

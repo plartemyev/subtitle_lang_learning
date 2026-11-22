@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Learn languages with subtitles</string>
+   <string/>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout_3">
@@ -28,7 +28,7 @@
       </property>
       <widget class="QWidget" name="onlineSource">
        <attribute name="title">
-        <string>Load from online sources</string>
+        <string/>
        </attribute>
        <layout class="QHBoxLayout" name="horizontalLayout_2">
         <item>
@@ -47,7 +47,7 @@
         <item>
          <widget class="QPushButton" name="onlineSearchBtn">
           <property name="text">
-           <string>Search</string>
+           <string/>
           </property>
          </widget>
         </item>
@@ -55,20 +55,20 @@
       </widget>
       <widget class="QWidget" name="fileSourceSRT">
        <attribute name="title">
-        <string>Load from SRT-file</string>
+        <string/>
        </attribute>
        <layout class="QHBoxLayout" name="horizontalLayout">
         <item>
          <widget class="QLineEdit" name="filePathInput">
           <property name="placeholderText">
-           <string>Subtitle file</string>
+           <string/>
           </property>
          </widget>
         </item>
         <item>
          <widget class="QPushButton" name="fileSelectBtn">
           <property name="text">
-           <string>Select SRT file</string>
+           <string/>
           </property>
          </widget>
         </item>
@@ -126,7 +126,7 @@
           <item>
            <widget class="QCheckBox" name="translateCheckBox">
             <property name="text">
-             <string>Translate</string>
+             <string/>
             </property>
            </widget>
           </item>
@@ -136,7 +136,7 @@
              <bool>false</bool>
             </property>
             <property name="text">
-             <string>Only sin&amp;gle word</string>
+             <string/>
             </property>
             <property name="checkable">
              <bool>true</bool>
@@ -158,7 +158,7 @@
              <bool>false</bool>
             </property>
             <property name="text">
-             <string>Whole phrase</string>
+             <string/>
             </property>
             <property name="checkable">
              <bool>true</bool>
@@ -199,7 +199,7 @@
           </property>
           <widget class="QWidget" name="translateOnlineTab">
            <attribute name="title">
-            <string>Translate with online tools</string>
+            <string/>
            </attribute>
            <layout class="QVBoxLayout" name="verticalLayout">
             <item>
@@ -230,7 +230,7 @@
             <bool>false</bool>
            </property>
            <attribute name="title">
-            <string>Translate locally</string>
+            <string/>
            </attribute>
           </widget>
          </widget>

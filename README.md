@@ -28,6 +28,10 @@ a local file with subtitles in SRT format.
 Supported subtitle languages: English (`eng`), German (`deu`), Russian (`rus`) - select the
 language in the UI before loading, or pass `--language` to `cli.py`.
 Words are arranged by they frequency.
+Interface languages: German (`de`), English (`en`), Russian (`ru`). The desktop app
+follows the system locale and can be switched any time via the `Language · Язык · Sprache`
+menu (the choice is remembered). Pass `--ui-language {de,en,ru}` to `cli.py` to override
+the terminal interface language.
 
 ARCHITECTURE
 ------------
@@ -36,11 +40,29 @@ import a UI framework (`PyQt6` or any other). Frontends live on their own:
 
 * `main.py` + `ui/qt/` - PyQt6 desktop frontend (the graphical application);
 * `cli.py` - terminal frontend, same analysis pipeline without any GUI;
+* `ui/i18n.py` - gettext-based localization adapter shared by every frontend;
+* `locales/` - the UI catalogs (ISO-639-1 `de`/`en`/`ru`), keyed by stable message
+  codes; `en` is the reference locale and every locale ships a complete catalog;
 * `core/` - languages registry (neutral ISO-like codes `eng`/`deu`/`rus`), subtitle
   analyzer, OpenSubtitles.org client, translation helpers and `AppController`
   orchestrating it all. User-facing events are emitted as structured messages
   (code + params) and rendered by the frontend, keeping the core free of display
   text - that is the groundwork for localization and additional UI targets.
+
+LOCALIZATION
+------------
+Catalogs live in `locales/<lang>/LC_MESSAGES/messages.po`; msgids are frontend-neutral
+message codes, plural pairs use gettext plurals. The compiled `.mo` binaries are
+committed, so end users need no gettext toolchain. After editing a `.po` file,
+recompile and commit both:
+
+    tools/compile_locales.sh
+
+Run the checks (catalog completeness, plural rules, Qt retranslation) with:
+
+    python3 -m unittest discover tests
+
+(the catalog tests need `msgfmt` from the gettext tools; Qt tests run offscreen).
 
 REQUIREMENTS
 -------------
@@ -84,7 +106,7 @@ TODO
 * [ ] Add ability to save already remembered words to exclude it from further searches.
 * [ ] Embed video player, to be able to load video files with subtitles and jump to
 the moment when a phrase is being spoken at the click on selected word.
-* [ ] Localization.
+* [x] Localization (desktop Qt + CLI; catalog converters for web/Android pending).
 * [ ] Package for Android.
 * [ ] Package for Windows.
 * [ ] Package for macOS.
