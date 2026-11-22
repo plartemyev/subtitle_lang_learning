@@ -7,14 +7,14 @@ catalog is the reference locale: every locale ships a complete catalog and
 a missing key falls back ``active -> en -> raw code``; catalog completeness
 is guarded by ``tests/test_locales.py``.
 
-UI locale codes are ISO-639-1 (``de``/``en``/``ru``) and are independent of
+UI locale codes are ISO-639-1 (``de``/``en``/``ru``/``th``) and are independent of
 the subtitle language codes of :mod:`core.languages` (``eng``/``deu``/``rus``).
 """
 import gettext
 import os
 from pathlib import Path
 
-LOCALES = ('de', 'en', 'ru')
+LOCALES = ('de', 'en', 'ru', 'th')
 DEFAULT_LOCALE = 'en'
 _DOMAIN = 'messages'
 _LOCALE_DIR = Path(__file__).resolve().parent.parent / 'locales'

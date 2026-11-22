@@ -1,0 +1,371 @@
+# Thai catalog for the shared message codes.
+# Every UI locale ships a complete catalog keyed by the same stable codes;
+# the `en` entries double as the translators' source of reference.
+msgid ""
+msgstr ""
+"Project-Id-Version: subtitle_lang_learning\n"
+"PO-Revision-Date: 2026-11-23 12:00+0000\n"
+"Last-Translator: Pavel Artemev <a@pavel.bz>\n"
+"Language-Team: Pavel Artemev <a@pavel.bz>\n"
+"Language: th\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
+
+msgid "warning_title"
+msgstr "คำเตือน"
+
+msgid "unable_to_load_file"
+msgstr "ไม่สามารถโหลดคำบรรยายจากไฟล์ {path} ได้"
+
+msgid "no_subtitles_found"
+msgstr "ไม่พบคำบรรยาย"
+
+msgid "subtitles_service_error"
+msgstr "เกิดปัญหาในการเชื่อมต่อกับ OpenSubtitles.org"
+
+msgid "no_parseable_subtitles"
+msgid_plural "no_parseable_subtitles_plural"
+msgstr[0] "ไม่สามารถอ่านไฟล์คำบรรยายได้เลย จากทั้งหมด {count} ไฟล์"
+
+#. Meta line in the word details pane: entry.count occurrences of the word.
+msgid "word_meta_line"
+msgid_plural "word_meta_line_plural"
+msgstr[0] "คำว่า \"{word}\" พบ {count} ครั้ง"
+
+#. spaCy POS tag, lowercased, appended to the word meta line.
+msgid "pos_suffix"
+msgstr ", {pos}"
+
+#. Number of possessive usages, appended to the word meta line.
+msgid "possessive_suffix"
+msgid_plural "possessive_suffix_plural"
+msgstr[0] ", ใช้แสดงเจ้าของ {count} ครั้ง"
+
+msgid "context_label"
+msgstr "บริบท:"
+
+#. Display names of the subtitle languages (core.languages codes).
+msgid "language_name_eng"
+msgstr "ภาษาอังกฤษ"
+
+msgid "language_name_deu"
+msgstr "ภาษาเยอรมัน"
+
+msgid "language_name_rus"
+msgstr "ภาษารัสเซีย"
+
+msgid "window_title"
+msgstr "เรียนภาษาจากคำบรรยายใต้ภาพ"
+
+msgid "tab_online_source"
+msgstr "โหลดจากแหล่งออนไลน์"
+
+msgid "tab_file_source"
+msgstr "โหลดจากไฟล์ SRT"
+
+msgid "placeholder_subtitle_file"
+msgstr "ไฟล์คำบรรยาย"
+
+msgid "button_select_srt"
+msgstr "เลือกไฟล์ SRT"
+
+msgid "button_search"
+msgstr "ค้นหา"
+
+msgid "checkbox_translate"
+msgstr "แปลภาษา"
+
+#. '&' precedes the Qt keyboard mnemonic.
+msgid "radio_single_word"
+msgstr "เฉพาะคำเดี่ยว"
+
+msgid "radio_whole_phrase"
+msgstr "ทั้งวลี"
+
+#. Symbols menu: whose Montessori tradition paints the grammar icons.
+msgid "symbol_system_ui"
+msgstr "ตามภาษาของส่วนติดต่อ"
+
+msgid "symbol_system_subtitle"
+msgstr "ตามภาษาของคำบรรยาย"
+
+msgid "tab_translate_online"
+msgstr "แปลด้วยเครื่องมือออนไลน์"
+
+msgid "tab_translate_local"
+msgstr "แปลด้วยเครื่องมือในเครื่อง"
+
+msgid "cli_word_line"
+msgstr "คำ: {word} \t จำนวน: {count}"
+
+msgid "cli_subtitle_help"
+msgstr "พาธของไฟล์ SRT หรือชื่อภาพยนตร์/ซีรีส์สำหรับค้นหาออนไลน์"
+
+msgid "cli_language_help"
+msgstr "รหัสภาษาของคำบรรยาย (ค่าเริ่มต้น: %(default)s)"
+
+msgid "cli_debug_help"
+msgstr "แสดงบันทึกระดับดีบัก"
+
+msgid "cli_ui_language_help"
+msgstr "รหัสภาษาของส่วนติดต่อ (ค่าเริ่มต้น: %(default)s)"
+
+#. Pedagogical grammar symbols (Montessori): category display names.
+msgid "pos_name_noun"
+msgstr "คำนาม"
+
+msgid "pos_name_propn"
+msgstr "คำนามเฉพาะ"
+
+msgid "pos_name_art"
+msgstr "คำนำหน้านาม"
+
+msgid "pos_name_adj"
+msgstr "คำคุณศัพท์"
+
+msgid "pos_name_verb"
+msgstr "คำกริยา"
+
+msgid "pos_name_aux"
+msgstr "คำกริยาช่วย"
+
+msgid "pos_name_part"
+msgstr "คำช่วย"
+
+msgid "pos_name_adp"
+msgstr "คำบุพบท"
+
+msgid "pos_name_pron"
+msgstr "คำสรรพนาม"
+
+msgid "pos_name_adv"
+msgstr "คำวิเศษณ์"
+
+msgid "pos_name_conj"
+msgstr "คำสันธาน"
+
+msgid "pos_name_intj"
+msgstr "คำอุทาน"
+
+#. Pedagogical grammar symbols (Montessori): per-category explanations.
+msgid "pos_tip_noun"
+msgstr "มอนเตสโซรี: พีระมิดสีดำขนาดใหญ่ — มั่นคงและถาวร เป็นศิลาก่อรากฐานของภาษา"
+
+msgid "pos_tip_propn"
+msgstr "ส่วนขยายของมอนเตสโซรี: พีระมิดคำนามที่ประดับด้วยดาวดวงเล็ก — ชื่อที่แยกออกมาเป็นพิเศษ"
+
+msgid "pos_tip_art"
+msgstr "มอนเตสโซรี: พีระมิดสีฟ้าอ่อนขนาดเล็ก อยู่เคียงข้างพีระมิดสีดำอันสูงใหญ่"
+
+msgid "pos_tip_adj"
+msgstr "มอนเตสโซรี: พีระมิดสีน้ำเงินเข้มขนาดกลาง พิงพีระมิดสีดำอันยิ่งใหญ่"
+
+msgid "pos_tip_verb"
+msgstr "มอนเตสโซรี: ทรงกลมสีแดง — ดวงอาทิตย์ที่ปลุกประโยคให้มีชีวิตชีวา"
+
+msgid "pos_tip_aux"
+msgstr "ส่วนขยายของมอนเตสโซรี: ทรงกลมสีแดงของคำกริยา วาดเป็นวงแหวนโปร่ง"
+
+msgid "pos_tip_part"
+msgstr "ส่วนขยายของมอนเตสโซรี: ทรงกลมสีแดงจิ๋ว น้องเล็กของคำกริยา"
+
+msgid "pos_tip_adp"
+msgstr "มอนเตสโซรี: จันทร์เสี้ยวสีเขียว — สะพานน้อยโค้งคอยเชื่อมคำเข้าหากัน"
+
+msgid "pos_tip_pron"
+msgstr "มอนเตสโซรี: พีระมิดสีม่วงที่ขีดเส้นแบ่งออกเป็นสามส่วน"
+
+#. Undivided pronoun pyramid of the ru/de symbol systems.
+msgid "pos_tip_pron_plain"
+msgstr "มอนเตสโซรี: พีระมิดสีม่วง — ญาติสนิทของพีระมิดคำนามสีดำ"
+
+msgid "pos_tip_adv"
+msgstr "มอนเตสโซรี: ทรงกลมสีส้มขนาดเล็ก — ดวงจันทร์เคียงข้างดวงอาทิตย์ของคำกริยา"
+
+msgid "pos_tip_conj"
+msgstr "มอนเตสโซรี: แถบสีชมพู — ริบบิ้นเรียวบางที่มัดคำเข้าด้วยกัน"
+
+msgid "pos_tip_intj"
+msgstr "มอนเตสโซรี: รูปสี่เหลี่ยมข้าวหลามตัดสีทอง — แสงวาบของอารมณ์ที่เกิดขึ้นทันทีทันใด"
+
+#. Classical keyhole/exclamation interjection of the ru/de symbol systems.
+msgid "pos_tip_intj_exclaim"
+msgstr "มอนเตสโซรี: เครื่องหมายอัศเจรย์สีทอง — แสงวาบของอารมณ์ที่พลุ่งขึ้นมาทันที"
+
+#. Word tooltip line inside the context phrase.
+msgid "token_lemma_line"
+msgstr "รากศัพท์ {lemma} · {pos}"
+
+#. Extra usages of the selected word in another part of speech.
+msgid "pos_also_line"
+msgstr "ยังใช้เป็น {items}"
+
+#. Legend label above the symbol chips of the context phrase.
+msgid "legend_in_phrase"
+msgstr "ในวลีนี้"
+
+#. Legend hint for the per-word tooltips.
+msgid "legend_hint"
+msgstr "ชี้ที่คำใดก็ได้เพื่อดูรากศัพท์และไวยากรณ์"
+
+#. Universal Dependencies morphology values shown in word tooltips.
+msgid "morph_person_1"
+msgstr "บุรุษที่ 1"
+
+msgid "morph_person_2"
+msgstr "บุรุษที่ 2"
+
+msgid "morph_person_3"
+msgstr "บุรุษที่ 3"
+
+msgid "morph_number_sing"
+msgstr "เอกพจน์"
+
+msgid "morph_number_plur"
+msgstr "พหูพจน์"
+
+msgid "morph_tense_pres"
+msgstr "ปัจจุบันกาล"
+
+msgid "morph_tense_past"
+msgstr "อดีตกาล"
+
+msgid "morph_tense_fut"
+msgstr "อนาคตกาล"
+
+msgid "morph_tense_imp"
+msgstr "กาลไม่สมบูรณ์"
+
+msgid "morph_verbform_fin"
+msgstr "กริยาจำกัด"
+
+msgid "morph_verbform_inf"
+msgstr "ภาคิกริยา"
+
+msgid "morph_verbform_part"
+msgstr "คำกริยาภาคิ"
+
+msgid "morph_verbform_conv"
+msgstr "กริยาเชื่อม"
+
+msgid "morph_verbform_ger"
+msgstr "กริยานาม"
+
+msgid "morph_mood_ind"
+msgstr "เชิงชี้แจง"
+
+msgid "morph_mood_imp"
+msgstr "เชิงคำสั่ง"
+
+msgid "morph_mood_sub"
+msgstr "เชิงสมมติ"
+
+msgid "morph_mood_cnd"
+msgstr "เชิงเงื่อนไข"
+
+msgid "morph_aspect_imp"
+msgstr "ไม่สมบูรณ์"
+
+msgid "morph_aspect_perf"
+msgstr "สมบูรณ์"
+
+msgid "morph_aspect_prog"
+msgstr "กำลังดำเนิน"
+
+msgid "morph_degree_pos"
+msgstr "ขั้นปกติ"
+
+msgid "morph_degree_cmp"
+msgstr "ขั้นกว่า"
+
+msgid "morph_degree_sup"
+msgstr "ขั้นสูงสุด"
+
+msgid "morph_case_nom"
+msgstr "การกประธาน"
+
+msgid "morph_case_acc"
+msgstr "การกกรรม"
+
+msgid "morph_case_dat"
+msgstr "การกผู้รับ"
+
+msgid "morph_case_gen"
+msgstr "การกเจ้าของ"
+
+msgid "morph_case_ins"
+msgstr "การกเครื่องมือ"
+
+msgid "morph_case_loc"
+msgstr "การกบอกสถานที่"
+
+msgid "morph_case_voc"
+msgstr "การกเรียกขาน"
+
+msgid "morph_gender_fem"
+msgstr "เพศหญิง"
+
+msgid "morph_gender_masc"
+msgstr "เพศชาย"
+
+msgid "morph_gender_neut"
+msgstr "เพศกลาง"
+
+msgid "morph_animacy_anim"
+msgstr "มีชีวิต"
+
+msgid "morph_animacy_inan"
+msgstr "ไม่มีชีวิต"
+
+msgid "morph_voice_act"
+msgstr "เชิงกระทำ"
+
+msgid "morph_voice_mid"
+msgstr "เชิงกลาง"
+
+msgid "morph_voice_pass"
+msgstr "เชิงถูกกระทำ"
+
+msgid "morph_definite_def"
+msgstr "ชี้เฉพาะ"
+
+msgid "morph_definite_ind"
+msgstr "ไม่ชี้เฉพาะ"
+
+msgid "morph_prontype_prs"
+msgstr "บุรุษสรรพนาม"
+
+msgid "morph_prontype_dem"
+msgstr "สรรพนามชี้เฉพาะ"
+
+msgid "morph_prontype_int"
+msgstr "สรรพนามไต่ถาม"
+
+msgid "morph_prontype_rel"
+msgstr "สรรพนามสัมพันธ์"
+
+msgid "morph_prontype_ind"
+msgstr "สรรพนามไม่ชี้เฉพาะ"
+
+msgid "morph_prontype_tot"
+msgstr "สรรพนามทั้งมวล"
+
+msgid "morph_prontype_neg"
+msgstr "สรรพนามปฏิเสธ"
+
+msgid "morph_poss_yes"
+msgstr "แสดงความเป็นเจ้าของ"
+
+msgid "morph_reflex_yes"
+msgstr "สะท้อนตัวเอง"
+
+msgid "morph_polarity_neg"
+msgstr "ปฏิเสธ"
+
+msgid "morph_numtype_card"
+msgstr "เลขจำนวนนับ"
+
+msgid "morph_numtype_ord"
+msgstr "เลขลำดับ"

@@ -120,6 +120,7 @@ class SymbolSystemTest(unittest.TestCase):
 
     def test_resolution_helpers(self):
         self.assertEqual(grammar.system_for_ui_locale('ru'), 'ru')
+        self.assertEqual(grammar.system_for_ui_locale('th'), 'th')
         self.assertEqual(grammar.system_for_ui_locale('zz'), 'en')
         self.assertEqual(grammar.system_for_subtitle_language('eng'), 'en')
         self.assertEqual(grammar.system_for_subtitle_language('deu'), 'de')
@@ -165,7 +166,7 @@ class PhraseViewWidgetTest(unittest.TestCase):
     def test_render_passes_for_every_symbol_system(self):
         tokens = [TokenView(text=f'w{category.value}', category=category)
                   for category in Category if category is not Category.UNMARKED]
-        for system in ('en', 'ru', 'de'):
+        for system in ('en', 'ru', 'de', 'th'):
             grammar.set_active_system(system)
             view = PhraseView()
             view.set_tokens(tokens)

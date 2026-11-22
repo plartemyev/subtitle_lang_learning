@@ -34,13 +34,14 @@ classical Montessori shapes): every word carries its part-of-speech symbol, colo
 underline style. Hover (or arrow-key to) any word for a lemma tooltip; hover the part-of-speech
 chips for plain-language explanations. Articles are told apart from other determiners
 per language (`core.languages`).
-The `Symbols · Символы · Symbole` menu chooses whose Montessori tradition paints the icons -
+The `Symbols · Символы · Symbole · สัญลักษณ์` menu chooses whose Montessori tradition paints the icons -
 the interface language's (the student's) or the subtitle language's. The systems differ only
 where the traditions genuinely differ (interjection: diamond vs exclamation keyhole,
-pronoun: tripartite vs plain pyramid).
-Interface languages: German (`de`), English (`en`), Russian (`ru`). The desktop app
-follows the system locale and can be switched any time via the `Language · Язык · Sprache`
-menu (the choice is remembered). Pass `--ui-language {de,en,ru}` to `cli.py` to override
+pronoun: tripartite vs plain pyramid); Thai (`th`) Montessori uses the imported international
+materials and renders like the reference set.
+Interface languages: German (`de`), English (`en`), Russian (`ru`), Thai (`th`). The desktop app
+follows the system locale and can be switched any time via the `Language · Язык · Sprache · ภาษา`
+menu (the choice is remembered). Pass `--ui-language {de,en,ru,th}` to `cli.py` to override
 the terminal interface language.
 
 ARCHITECTURE
@@ -51,7 +52,7 @@ import a UI framework (`PyQt6` or any other). Frontends live on their own:
 * `main.py` + `ui/qt/` - PyQt6 desktop frontend (the graphical application);
 * `cli.py` - terminal frontend, same analysis pipeline without any GUI;
 * `ui/i18n.py` - gettext-based localization adapter shared by every frontend;
-* `locales/` - the UI catalogs (ISO-639-1 `de`/`en`/`ru`), keyed by stable message
+* `locales/` - the UI catalogs (ISO-639-1 `de`/`en`/`ru`/`th`), keyed by stable message
   codes; `en` is the reference locale and every locale ships a complete catalog;
 * `core/` - languages registry (neutral ISO-like codes `eng`/`deu`/`rus`), subtitle
   analyzer, OpenSubtitles.org client, translation helpers and `AppController`

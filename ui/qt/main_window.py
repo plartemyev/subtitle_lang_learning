@@ -30,16 +30,17 @@ logger = logging.getLogger(__name__)
 main_window_ui_path = Path(__file__).parent.joinpath('main_window.ui').resolve()
 Ui_MainWindow, QtBaseClass = uic.loadUiType(main_window_ui_path)
 
-# Static trilingual title: readable no matter which locale is active, so the
+# Static multilingual title: readable no matter which locale is active, so the
 # override stays discoverable even when the wrong language was auto-selected.
-LANGUAGE_MENU_TITLE = 'Language · Язык · Sprache'
+LANGUAGE_MENU_TITLE = 'Language · Язык · Sprache · ภาษา'
 NATIVE_LANGUAGE_NAMES = {
     'de': 'Deutsch',
     'en': 'English',
     'ru': 'Русский',
+    'th': 'ไทย',
 }
 # Same rationale as the language menu title: locale-independent label.
-SYMBOLS_MENU_TITLE = 'Symbols · Символы · Symbole'
+SYMBOLS_MENU_TITLE = 'Symbols · Символы · Symbole · สัญลักษณ์'
 
 SETTINGS_ORGANIZATION = 'subtitle_lang_learning'
 SETTINGS_APPLICATION = 'gui'

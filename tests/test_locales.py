@@ -122,19 +122,27 @@ class CatalogTest(unittest.TestCase):
         return gettext.translation('messages', FRESHLY_COMPILED_DIR, [locale])
 
     def test_every_locale_has_all_codes(self):
-        for locale in ('de', 'en', 'ru'):
+        for locale in ('de', 'en', 'ru', 'th'):
             catalog = self.catalog(locale)
             for code in EXPECTED_CODES:
                 self.assertNotEqual(catalog.gettext(code), code, f'{locale}: missing {code}')
 
     def test_plural_pairs_resolve_in_both_forms(self):
-        for locale in ('de', 'en', 'ru'):
+        for locale in ('de', 'en', 'ru', 'th'):
             catalog = self.catalog(locale)
             for singular in PLURAL_SINGULAR_CODES:
                 for count in (1, 2, 5):
                     rendered = catalog.ngettext(singular, singular + '_plural', count)
                     self.assertNotEqual(rendered, singular, f'{locale}: missing singular of {singular}')
                     self.assertNotEqual(rendered, singular + '_plural', f'{locale}: missing plural of {singular}')
+
+    def test_thai_selects_one_invariant_form(self):
+        # Thai has no grammatical number: nplurals=1 renders the same form
+        # for every count.
+        catalog = self.catalog('th')
+        forms = {catalog.ngettext('word_meta_line', 'word_meta_line_plural', count)
+                 for count in (1, 2, 5)}
+        self.assertEqual(len(forms), 1)
 
     def test_russian_selects_three_distinct_forms(self):
         # possessive_suffix inflects into three distinct Russian forms
@@ -154,7 +162,7 @@ class CatalogTest(unittest.TestCase):
             self.assertEqual(len(forms), 2)
 
     def test_headers_declare_plural_rules(self):
-        for locale in ('de', 'en', 'ru'):
+        for locale in ('de', 'en', 'ru', 'th'):
             self.assertIn('plural-forms', self.catalog(locale).info())
 
 
@@ -208,6 +216,13 @@ class AdapterTest(unittest.TestCase):
                          ', 1 Possessivform')
         self.assertEqual(i18n.ntr('possessive_suffix', 'possessive_suffix_plural', 3, count=3),
                          ', 3 Possessivformen')
+
+    def test_thai_messages_through_adapter(self):
+        i18n.setup('th')
+        self.assertEqual(i18n.ntr('word_meta_line', 'word_meta_line_plural', 5,
+                                  word='เดิน', count=5),
+                         'คำว่า "เดิน" พบ 5 ครั้ง')
+        self.assertEqual(i18n.tr('language_name_eng'), 'ภาษาอังกฤษ')
 
 
 if __name__ == '__main__':

@@ -213,6 +213,8 @@ def message_suffix(category: Category):
 # traditions genuinely differ (interjection: diamond vs classical exclamation
 # keyhole, pronoun: tripartite vs plain pyramid). Colors, sizes and underline
 # styles are agreed across the modern material sets and stay shared.
+# Thai Montessori uses the imported international materials verbatim (no
+# documented indigenous deviation), hence the reference rendering.
 INTERJECTION_EXCLAIM = 'exclaim'
 PRONOUN_PLAIN = 'plain'
 
@@ -220,6 +222,7 @@ SYSTEM_VARIANTS = {
     'en': {},
     'ru': {'intj': INTERJECTION_EXCLAIM, 'pron': PRONOUN_PLAIN},
     'de': {'intj': INTERJECTION_EXCLAIM, 'pron': PRONOUN_PLAIN},
+    'th': {},
 }
 
 # Subtitle language (core.languages codes) -> symbol system.
@@ -229,7 +232,7 @@ _active_system = 'en'
 
 
 def set_active_system(system: str) -> None:
-    """Select whose Montessori tradition paints the symbols ('en'/'ru'/'de')."""
+    """Select whose Montessori tradition paints the symbols ('en'/'ru'/'de'/'th')."""
     global _active_system
     _active_system = system if system in SYSTEM_VARIANTS else 'en'
 
