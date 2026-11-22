@@ -79,12 +79,16 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def wordInAListSelected(self, item: PyQt6.QtCore.QModelIndex):
         self.selected_word = item.data()
-        word_count = self.subtitles.get(self.selected_word, {}).get('count', 0)
-        full_phrase = self.subtitles.get(self.selected_word, {}).get('sub_text', '')
+        word_meta = self.subtitles.get(self.selected_word, {})
+        full_phrase = word_meta.get('sub_text', '')
+        meta_line = f'Word "{self.selected_word}" encountered {word_meta.get("count", 0)} times'
+        if word_pos := word_meta.get('pos'):
+            meta_line += f', {word_pos.lower()}'
+        if word_possessive := word_meta.get('possessive'):
+            meta_line += f', {word_possessive} possessive'
         # TODO: Display selected word meta in a proper UI element
-        # phrase_meta = self.subtitles.get(self.selected_word, {}).get('sub_object', {})
-        self.ui.fullPhraseTextBrowser.setText(f'Word "{self.selected_word}" encountered {word_count} times\n'
-                                              f'Context:\n{full_phrase}')
+        # phrase_meta = word_meta.get('sub_object', {})
+        self.ui.fullPhraseTextBrowser.setText(f'{meta_line}\nContext:\n{full_phrase}')
         if self.ui.translateCheckBox.isChecked():
             if self.ui.translateSingleWordRbtn.isChecked():
                 self.onlineTranslate(self.selected_word)
@@ -113,7 +117,7 @@ class MainWindow(QtWidgets.QMainWindow):
         parser_parameters = sub_parser.ModuleParameters(self.ui.filePathInput.text())
         raw_sub = sub_parser.read_subtitles_file(parser_parameters.subtitle)
         sub_generator = srt.parse(raw_sub)
-        self.subtitles = sub_parser.parse_subtitles(sub_generator)
+        self.subtitles = sub_parser.parse_subtitles(sub_generator, self.ui.subtitlesLanguageSelect.currentText())
         self.populate_words_list()
 
     def loadSubtitlesFromInternet(self):
@@ -143,7 +147,7 @@ class MainWindow(QtWidgets.QMainWindow):
                     online_sub_name = sub.get('SubFileName')
                     raw_sub = sub_parser.download_subtitle(ost_handle, online_sub_id, online_sub_name)
                     sub_generator = srt.parse(raw_sub)
-                    self.subtitles = sub_parser.parse_subtitles(sub_generator)
+                    self.subtitles = sub_parser.parse_subtitles(sub_generator, params.language)
                     app_logger.info('Successfully parsed subtitle file')
                     break
                 except Exception as e:

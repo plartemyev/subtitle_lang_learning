@@ -25,11 +25,14 @@ USAGE
 -----
 Simply enter movie name or some TV series identifier, like `mash s11e06`. Or you could select
 a local file with subtitles in SRT format.
-Words are arranged by they frequency. 
+Supported subtitle languages: English, German, Russian - select the language in the UI
+before loading, or pass `--language` to `sub_parser.py`.
+Words are arranged by they frequency.
 
 REQUIREMENTS
 -------------
-App requires **python>=3.8**, **PyQt6**, **PyQt6-WebEngine**, **chardet**, **srt** and **nltk**.
+App requires **python>=3.8**, **PyQt6**, **PyQt6-WebEngine**, **chardet**, **srt** and **spacy**
+(with English, German and Russian language models).
 
 INSTALLATION
 ------------
@@ -62,7 +65,7 @@ and selecting "Download ZIP". Then unpack the archive.
 TODO
 ----
 * [ ] Embed some local dictionary.
-* [ ] Use nltk to retrieve original lemmas which would eliminate redundant words.
+* [x] Use lemmas to eliminate redundant word forms (done with spaCy, for English, German and Russian).
 * [ ] Add ability to save already remembered words to exclude it from further searches.
 * [ ] Embed video player, to be able to load video files with subtitles and jump to
 the moment when a phrase is being spoken at the click on selected word.

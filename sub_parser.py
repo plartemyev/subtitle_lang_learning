@@ -6,7 +6,7 @@ import logging
 import os
 import zlib
 import re
-import nltk
+import spacy
 from typing import List, Dict
 from xmlrpc.client import ServerProxy, Transport
 from chardet.universaldetector import UniversalDetector
@@ -18,23 +18,16 @@ logging.captureWarnings(True)
 
 language_codes = {
     'English': 'eng',
-    'German': 'ger'
+    'German': 'ger',
+    'Russian': 'rus'
 }
 
-map_universal_to_wordnet = {
-    'VERB': 'v',  # verbs
-    'NOUN': 'n',  # nouns
-    'PRON': 'n',  # pronouns
-    'ADJ': 'a',  # adjectives
-    'ADV': 'r',  # adverbs
-    'ADP': 'r',  # adpositions (prepositions and postpositions)
-    'CONJ': 's',  # conjunctions
-    'DET': 's',  # determiners
-    'NUM': 'n',  # cardinal numbers
-    'PRT': 'n',  # particles or other function words
-    'X': 'n',  # other: foreign words, typos, abbreviations
-    '.': 'n',  # punctuation
+spacy_models = {
+    'English': 'en_core_web_sm',
+    'German': 'de_core_news_sm',
+    'Russian': 'ru_core_news_sm'
 }
+_nlp_cache = {}
 
 html_tags_filter = re.compile(r'<.*?>')
 www_spam_filter = re.compile(r'www\.\w+', re.I)
@@ -103,14 +96,13 @@ def decompress(data: bytes) -> str:
     uncompressed_string = zlib.decompress(base64.b64decode(data), 16 + zlib.MAX_WBITS)
     detector = UniversalDetector()
     detector.feed(uncompressed_string)
-    detector_success = detector.done
     detector.close()
-    if detector_success:
-        logger.debug(f"Detected encoding: {detector.result.get('encoding')}")
-        encoding = detector.result.get('encoding')
+    encoding = detector.result.get('encoding')
+    logger.debug(f"Detected encoding: {encoding}")
+    try:
         decoded_string = uncompressed_string.decode(encoding=encoding)
-    else:
-        # Trying fall-back encodings
+    except (TypeError, UnicodeDecodeError):
+        # Detection was inconclusive, trying fall-back encodings
         for encoding in fall_back_encodings:
             try:
                 decoded_string = uncompressed_string.decode(encoding=encoding)
@@ -137,34 +129,47 @@ def logger_init():
     logger.handlers.append(console_handler)
 
 
-def parse_subtitles(sub_gen: srt.parse) -> Dict[str, dict]:
+def get_nlp(language: str):
+    model_name = spacy_models.get(language, 'en_core_web_sm')
+    if model_name not in _nlp_cache:
+        _nlp_cache[model_name] = spacy.load(model_name, exclude=['parser', 'ner'])
+    return _nlp_cache[model_name]
+
+
+def parse_subtitles(sub_gen: srt.parse, language: str = 'English') -> Dict[str, dict]:
     subs_dict = {}
-    wordnet_lemmatizer = nltk.WordNetLemmatizer()
+    sub_texts = []
+    sub_objects = []
     for sub_object in sub_gen:
         sub_text = html_tags_filter.sub('', sub_object.content)
         if www_spam_filter.search(sub_text):
             # Skipping whole phrase as spam
             continue
-        tagged_sub_tokens = nltk.pos_tag(nltk.word_tokenize(sub_text), tagset='universal')
-        for tagged_token in tagged_sub_tokens:
-            if tagged_token[1] in ('.', 'NUM'):
-                # skipping punctuation and cardinal numbers
+        sub_texts.append(sub_text)
+        sub_objects.append(sub_object)
+    for doc, sub_object, sub_text in zip(get_nlp(language).pipe(sub_texts, batch_size=64), sub_objects, sub_texts):
+        for token in doc:
+            if token.is_punct or token.is_space:
                 continue
-            word = ''
-            if tagged_token[0].startswith("'") and tagged_token[1] == 'VERB':
-                if tagged_token[0] == "'re":
-                    word = 'are'
-                elif tagged_token[0] == "'s":
-                    word = 'is'
-                elif tagged_token[0] == "'ve":
-                    word = 'have'
-            else:
-                word = tagged_token[0]
-            lemma = wordnet_lemmatizer.lemmatize(word, pos=map_universal_to_wordnet[tagged_token[1]]).lower()
+            if token.tag_ == 'POS':
+                # possessive marker: annotate the possessor's entry instead of a standalone word
+                possessor_lemma = doc[token.i - 1].lemma_.strip('-').lstrip('.').lower() if token.i > 0 else ''
+                if possessor_lemma in subs_dict.keys():
+                    subs_dict[possessor_lemma]['possessive'] = subs_dict[possessor_lemma].get('possessive', 0) + 1
+                continue
+            lemma = token.lemma_.strip('-').lstrip('.').lower()
+            if not lemma or token.is_digit or "'" in lemma:
+                continue
             if lemma not in subs_dict.keys():
-                subs_dict[lemma] = {'count': 1, 'sub_object': sub_object, 'sub_text': sub_text}
+                subs_dict[lemma] = {'count': 1, 'pos': token.pos_, 'pos_counts': {token.pos_: 1},
+                                    'sub_object': sub_object, 'sub_text': sub_text}
             else:
-                subs_dict[lemma]['count'] += 1
+                entry = subs_dict[lemma]
+                entry['count'] += 1
+                entry['pos_counts'][token.pos_] = entry['pos_counts'].get(token.pos_, 0) + 1
+                if entry['pos_counts'][token.pos_] > entry['pos_counts'][entry['pos']]:
+                    # keeping the most frequent part of speech in the entry meta
+                    entry['pos'] = token.pos_
     logger.info(f'Parsed {len(subs_dict)} unique words')
     return dict(sorted(subs_dict.items(), key=lambda _kv: _kv[1]['count'], reverse=True))
 
@@ -176,10 +181,11 @@ def read_subtitles_file(sub_file_path: str) -> str:
         detector.feed(line)
         if detector.done:
             break
-        else:
-            raise RuntimeError(f'Unable to detect encoding for file {sub_file_path}')
     detector.close()
-    with open(sub_file_path, encoding=detector.result.get('encoding')) as sub_f:
+    encoding = detector.result.get('encoding')
+    if not encoding:
+        raise RuntimeError(f'Unable to detect encoding for file {sub_file_path}')
+    with open(sub_file_path, encoding=encoding) as sub_f:
         return sub_f.read()
 
 
@@ -224,6 +230,6 @@ if __name__ == '__main__':
         online_sub_name = online_subs_available[0].get('SubFileName')
         raw_sub = download_subtitle(ost_handle, online_sub_id, online_sub_name)
     sub_generator = srt.parse(raw_sub)
-    sorted_subs_dict = parse_subtitles(sub_generator)
+    sorted_subs_dict = parse_subtitles(sub_generator, parameters.language)
     for k, v in sorted_subs_dict.items():
         print(f'Word: {k} \t Count: {v["count"]}')
