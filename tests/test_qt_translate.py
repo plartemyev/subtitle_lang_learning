@@ -37,6 +37,7 @@ if 'PyQt6.QtWebEngineWidgets' not in sys.modules:
 
 import ui.qt.main_window as main_window
 from core.models import AnalysisResult, AnnotatedPhrase, WordEntry
+from ui import i18n
 
 # Keep a reference: an unreferenced QApplication is garbage-collected and its
 # destruction makes any later QWidget construction abort (qFatal).
@@ -98,6 +99,25 @@ class OnlineTranslationTest(unittest.TestCase):
         self._wait_for_debounce()
         self.assertEqual(self.load_mock.call_count, 1)
         self.assertIn('text=house', self.load_mock.call_args[0][0].toString())
+
+    def test_translate_url_follows_active_locale(self):
+        self._enable_translation()
+        self._select_words(['house'])
+        self._wait_for_debounce()
+        url = self.load_mock.call_args[0][0].toString()
+        # both the provider interface language and the translation target
+        self.assertIn('hl=en', url)
+        self.assertIn('tl=en', url)
+
+    def test_language_switch_updates_translate_url(self):
+        self._enable_translation()
+        self.addCleanup(i18n.setup, 'en')
+        i18n.setup('de')
+        self._select_words(['house'])
+        self._wait_for_debounce()
+        url = self.load_mock.call_args[0][0].toString()
+        self.assertIn('hl=de', url)
+        self.assertIn('tl=de', url)
 
     def test_phrase_mode_translates_context_phrase(self):
         entry = WordEntry(word='garden', count=2, occurrences={

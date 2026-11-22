@@ -28,6 +28,9 @@ a local file with subtitles in SRT format.
 Supported subtitle languages: English (`eng`), German (`deu`), Russian (`rus`) - select the
 language in the UI before loading, or pass `--language` to `cli.py`.
 Words are arranged by they frequency.
+Optionally, the selected word or its context phrase is looked up in the embedded
+Google Translate view; the provider's interface language and the translation
+target both follow the active interface language.
 
 Selecting a word shows its context phrase annotated with pedagogical grammar symbols (the
 classical Montessori shapes): every word carries its part-of-speech symbol, color and

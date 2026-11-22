@@ -398,7 +398,9 @@ class MainWindow(QtWidgets.QMainWindow):
             self.populate_words_list()
 
     def onlineTranslate(self, text: str):
-        self.ui.webEngineView.load(QUrl(translate.build_translate_url(text)))
+        locale = i18n.active_locale
+        self.ui.webEngineView.load(QUrl(translate.build_translate_url(
+            text, target=locale, interface=locale)))
 
     def _selected_phrase(self) -> str:
         entry = None
