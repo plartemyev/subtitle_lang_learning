@@ -147,40 +147,40 @@ msgstr "interjection"
 
 #. Pedagogical grammar symbols (Montessori): per-category explanations.
 msgid "pos_tip_noun"
-msgstr "A person, place or thing. Montessori: the pyramid — solid and stable, things exist."
+msgstr "Montessori: the large black pyramid — solid and stable, the foundation stone of language."
 
 msgid "pos_tip_propn"
-msgstr "The name of a particular person, place or thing. Marked with a star above the noun pyramid."
+msgstr "Montessori extension: the noun pyramid crowned with a small star — a name set apart."
 
 msgid "pos_tip_art"
-msgstr "Introduces a noun: 'a', 'the'. Montessori: a small companion of the noun pyramid."
+msgstr "Montessori: the small light-blue pyramid beside its towering black companion."
 
 msgid "pos_tip_adj"
-msgstr "Describes a noun: 'good', 'first'. Montessori: the dark-blue triangle leaning on the pyramid."
+msgstr "Montessori: the medium dark-blue pyramid leaning on the great black one."
 
 msgid "pos_tip_verb"
-msgstr "An action or a state: 'run', 'be', 'know'. Montessori: the red sphere — it moves, like the sun."
+msgstr "Montessori: the red sphere — the sun that brings the sentence to life."
 
 msgid "pos_tip_aux"
-msgstr "A helper beside the main verb: 'is', 'have'. Extension: the verb's sphere, hollow."
+msgstr "Montessori extension: the verb's red sphere drawn as an outline ring."
 
 msgid "pos_tip_part"
-msgstr "A small word with a fixed grammar job: 'to' before a verb. Extension: a tiny verb sphere."
+msgstr "Montessori extension: a tiny red sphere, the little sibling of the verb."
 
 msgid "pos_tip_adp"
-msgstr "Links a noun into the sentence: 'in', 'of', 'like'. Montessori: the green crescent — a bridge between words."
+msgstr "Montessori: the green crescent — a little bridge arched between words."
 
 msgid "pos_tip_pron"
-msgstr "Stands in the noun's place: 'you', 'who', 'it'. Montessori: the three-part triangle."
+msgstr "Montessori: the purple pyramid banded into three parts."
 
 msgid "pos_tip_adv"
-msgstr "Describes a verb or an adjective: 'very', 'well'. Montessori: the orange sphere rolling beside the verb."
+msgstr "Montessori: the small orange sphere — the moon beside the verb's sun."
 
 msgid "pos_tip_conj"
-msgstr "Joins equal parts: 'and', 'but', 'or'. Montessori: the pink strip stretched between words."
+msgstr "Montessori: the pink strip — a slender ribbon tying words together."
 
 msgid "pos_tip_intj"
-msgstr "An exclamation: 'oh', 'wow'. Montessori: the golden diamond."
+msgstr "Montessori: the golden diamond — a bright flash of sudden feeling."
 
 #. Word tooltip line inside the context phrase.
 msgid "token_lemma_line"
