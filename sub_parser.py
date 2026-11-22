@@ -150,7 +150,7 @@ def annotate_phrase(doc) -> Dict:
                       for token in doc if not token.is_space]}
 
 
-def parse_subtitles(sub_gen: srt.parse, language: str = 'English') -> Dict[str, dict]:
+def parse_subtitles(sub_gen: srt.parse, language: str = 'English', use_lemmas: bool = True) -> Dict[str, dict]:
     subs_dict = {}
     sub_texts = []
     sub_objects = []
@@ -173,21 +173,24 @@ def parse_subtitles(sub_gen: srt.parse, language: str = 'English') -> Dict[str, 
         for token in doc:
             if token.is_punct or token.is_space:
                 continue
+            word = normalize_lemma(token) if use_lemmas else token.lower_
             if token.tag_ == 'POS':
                 # possessive marker: annotate the possessor's entry instead of a standalone word
-                possessor_lemma = normalize_lemma(doc[token.i - 1]) if token.i > 0 else ''
-                if possessor_lemma in subs_dict.keys():
-                    subs_dict[possessor_lemma]['possessive'] = subs_dict[possessor_lemma].get('possessive', 0) + 1
+                possessor_word = ''
+                if token.i > 0:
+                    possessor = doc[token.i - 1]
+                    possessor_word = normalize_lemma(possessor) if use_lemmas else possessor.lower_
+                if possessor_word in subs_dict.keys():
+                    subs_dict[possessor_word]['possessive'] = subs_dict[possessor_word].get('possessive', 0) + 1
                 continue
-            lemma = normalize_lemma(token)
-            if not lemma or token.is_digit or "'" in lemma:
+            if not word or token.is_digit or "'" in word:
                 continue
-            if lemma not in subs_dict.keys():
-                subs_dict[lemma] = {'count': 1, 'pos': token.pos_, 'pos_counts': {token.pos_: 1},
+            if word not in subs_dict.keys():
+                subs_dict[word] = {'count': 1, 'pos': token.pos_, 'pos_counts': {token.pos_: 1},
                                     'occurrences': {token.pos_: [{'sub_object': sub_object, 'sub_text': sub_text}]},
                                     'sub_object': sub_object, 'sub_text': sub_text}
             else:
-                entry = subs_dict[lemma]
+                entry = subs_dict[word]
                 entry['count'] += 1
                 entry['pos_counts'][token.pos_] = entry['pos_counts'].get(token.pos_, 0) + 1
                 entry['occurrences'].setdefault(token.pos_, []).append(
