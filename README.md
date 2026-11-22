@@ -28,6 +28,12 @@ a local file with subtitles in SRT format.
 Supported subtitle languages: English (`eng`), German (`deu`), Russian (`rus`) - select the
 language in the UI before loading, or pass `--language` to `cli.py`.
 Words are arranged by they frequency.
+
+Selecting a word shows its context phrase annotated with pedagogical grammar symbols (the
+classical Montessori shapes): every word carries its part-of-speech symbol, color and
+underline style. Hover (or arrow-key to) any word for a lemma tooltip; hover the part-of-speech
+chips for plain-language explanations. Articles are told apart from other determiners
+per language (`core.languages`).
 Interface languages: German (`de`), English (`en`), Russian (`ru`). The desktop app
 follows the system locale and can be switched any time via the `Language · Язык · Sprache`
 menu (the choice is remembered). Pass `--ui-language {de,en,ru}` to `cli.py` to override

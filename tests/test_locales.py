@@ -26,6 +26,12 @@ FRESHLY_COMPILED_DIR = PROJECT_ROOT / 'tmp' / 'test-locales'
 # Every message code of the shared catalogs. Direct gettext keys (singular
 # entries); the *_plural variants are only reachable via ngettext and are
 # covered by PLURAL_SINGULAR_CODES.
+def _morph_message_codes():
+    """Morphology codes derived from the frontend's UD feature whitelist."""
+    from ui.qt.grammar import MORPH_FEATURE_VALUES
+    return [f'morph_{feature}_{value}' for feature, value in sorted(MORPH_FEATURE_VALUES)]
+
+
 EXPECTED_CODES = frozenset({
     'warning_title',
     'unable_to_load_file',
@@ -55,6 +61,35 @@ EXPECTED_CODES = frozenset({
     'cli_language_help',
     'cli_debug_help',
     'cli_ui_language_help',
+    'pos_name_noun',
+    'pos_name_propn',
+    'pos_name_art',
+    'pos_name_adj',
+    'pos_name_verb',
+    'pos_name_aux',
+    'pos_name_part',
+    'pos_name_adp',
+    'pos_name_pron',
+    'pos_name_adv',
+    'pos_name_conj',
+    'pos_name_intj',
+    'pos_tip_noun',
+    'pos_tip_propn',
+    'pos_tip_art',
+    'pos_tip_adj',
+    'pos_tip_verb',
+    'pos_tip_aux',
+    'pos_tip_part',
+    'pos_tip_adp',
+    'pos_tip_pron',
+    'pos_tip_adv',
+    'pos_tip_conj',
+    'pos_tip_intj',
+    'token_lemma_line',
+    'pos_also_line',
+    'legend_in_phrase',
+    'legend_hint',
+    *_morph_message_codes(),
 })
 
 # Singular msgids of the codes defined as gettext plural pairs in the catalogs.

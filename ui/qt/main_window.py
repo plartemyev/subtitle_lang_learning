@@ -6,6 +6,7 @@ talks to OpenSubtitles or formats core events itself. All display text comes
 from the shared localization adapter :mod:`ui.i18n`, applied by
 :func:`MainWindow._retranslate_ui` (the .ui file stays layout-only).
 """
+import html
 import logging
 import os
 from pathlib import Path
@@ -14,13 +15,15 @@ from typing import Callable
 import PyQt6.QtCore
 from PyQt6 import QtCore, QtWidgets, uic
 from PyQt6.QtCore import QDir, QUrl
-from PyQt6.QtGui import (QAction, QActionGroup, QBrush, QColor, QStandardItem,
+from PyQt6.QtGui import (QAction, QActionGroup, QBrush, QColor, QFont, QStandardItem,
                          QStandardItemModel)
 
 from core import translate
 from core.controller import AppController, UserMessage
 from core.languages import LANGUAGES
 from ui import i18n
+from ui.qt import grammar
+from ui.qt.phrase_view import PosChip, TokenView
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +46,11 @@ SETTINGS_LANGUAGE_KEY = 'ui_language'
 # The translation provider rate-limits by IP: coalesce rapid word clicks and
 # radio switches into a single request for the last selection.
 TRANSLATE_DEBOUNCE_MS = 400
+
+# Word details stay hidden until a word from the list is selected.
+DETAIL_WIDGET_NAMES = ('selectedWordLabel', 'selectedPosChip', 'selectedWordCountLabel',
+                       'selectedWordSubline', 'detailsDivider', 'contextLabel',
+                       'phraseView', 'legendLabel', 'legendHint')
 
 
 def _app_settings() -> QtCore.QSettings:
@@ -87,6 +95,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self._translate_timer = QtCore.QTimer(self)
         self._translate_timer.setSingleShot(True)
         self._translate_timer.timeout.connect(self._translate_current_selection)
+        self._style_word_details()
+        for widget_name in DETAIL_WIDGET_NAMES:
+            getattr(self.ui, widget_name).setVisible(False)
         self._retranslate_ui()
         self.show()
 
@@ -123,6 +134,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.translateCheckBox.setText(i18n.tr('checkbox_translate'))
         self.ui.translateSingleWordRbtn.setText(i18n.tr('radio_single_word'))
         self.ui.translatePhraseRbtn.setText(i18n.tr('radio_whole_phrase'))
+        self.ui.contextLabel.setText(i18n.tr('context_label'))
+        self.ui.legendLabel.setText(i18n.tr('legend_in_phrase'))
+        self.ui.legendHint.setText(i18n.tr('legend_hint'))
         self._populate_language_select()
         self._render_word_meta()
 
@@ -177,17 +191,116 @@ class MainWindow(QtWidgets.QMainWindow):
             entry = self.controller.current_result.words.get(self.selected_word)
         if entry is None:
             return
-        meta_line = i18n.ntr('word_meta_line', 'word_meta_line_plural', entry.count,
-                             word=self.selected_word, count=entry.count)
-        if entry.pos:
-            meta_line += i18n.tr('pos_suffix', pos=entry.pos.lower())
+        language = LANGUAGES[self.currentLanguageCode()]
+        category = grammar.category_for(entry.pos, entry.word, language)
+        for widget_name in DETAIL_WIDGET_NAMES:
+            getattr(self.ui, widget_name).setVisible(True)
+        self.ui.selectedWordLabel.setText(entry.word)
+        self.ui.selectedWordCountLabel.setText(f'{entry.count}\u00d7')
+        subline = ''
+        if category is grammar.Category.UNMARKED:
+            self.ui.selectedPosChip.setVisible(False)
+            if entry.pos:
+                subline = i18n.tr('pos_suffix', pos=entry.pos.lower()).lstrip(', ')
+        else:
+            suffix = grammar.message_suffix(category)
+            self.ui.selectedPosChip.set_data(category, i18n.tr('pos_name_' + suffix))
+            self.ui.selectedPosChip.setToolTip(i18n.tr('pos_tip_' + suffix))
+            subline = self._entry_subline(entry, language)
+        self.ui.selectedWordSubline.setText(subline)
+        self.ui.selectedWordSubline.setVisible(bool(subline))
+        self._render_phrase(entry, language)
+
+    def _style_word_details(self):
+        """Fonts for the details pane; the .ui file stays layout-only."""
+        word_font = self.ui.selectedWordLabel.font()
+        word_font.setPointSizeF(word_font.pointSizeF() + 6)
+        word_font.setBold(True)
+        self.ui.selectedWordLabel.setFont(word_font)
+
+        subline_font = self.ui.selectedWordSubline.font()
+        subline_font.setPointSizeF(max(subline_font.pointSizeF() - 1, 7))
+        self.ui.selectedWordSubline.setFont(subline_font)
+
+        for label in (self.ui.contextLabel, self.ui.legendLabel):
+            small_font = label.font()
+            small_font.setPointSizeF(max(small_font.pointSizeF() - 2, 7))
+            small_font.setCapitalization(QFont.Capitalization.SmallCaps)
+            small_font.setBold(True)
+            small_font.setLetterSpacing(QFont.SpacingType.PercentageSpacing, 106)
+            label.setFont(small_font)
+
+        hint_font = self.ui.legendHint.font()
+        hint_font.setPointSizeF(max(hint_font.pointSizeF() - 1, 7))
+        self.ui.legendHint.setFont(hint_font)
+
+    def _entry_subline(self, entry, language) -> str:
+        """'also a noun (2×)' line plus the possessive note, if any."""
+        parts = []
+        others = sorted(((pos, count) for pos, count in entry.pos_counts.items()
+                         if pos != entry.pos), key=lambda item: item[1], reverse=True)
+        if others:
+            items = ', '.join(f'{self._pos_display(pos, entry.word, language)} ({count}\u00d7)'
+                              for pos, count in others)
+            parts.append(i18n.tr('pos_also_line', items=items))
         if entry.possessive_count:
-            meta_line += i18n.ntr('possessive_suffix', 'possessive_suffix_plural',
+            possessive = i18n.ntr('possessive_suffix', 'possessive_suffix_plural',
                                   entry.possessive_count, count=entry.possessive_count)
-        context_phrase = entry.context_phrase.text if entry.context_phrase else ''
-        # TODO: Display selected word meta in a proper UI element
-        self.ui.fullPhraseTextBrowser.setText(
-            f'{meta_line}\n{i18n.tr("context_label")}\n{context_phrase}')
+            parts.append(possessive.lstrip(', '))
+        return ' \u00b7 '.join(parts)
+
+    def _pos_display(self, upos, token_lower, language) -> str:
+        category = grammar.category_for(upos, token_lower, language)
+        suffix = grammar.message_suffix(category)
+        return i18n.tr('pos_name_' + suffix) if suffix else upos.lower()
+
+    def _render_phrase(self, entry, language):
+        phrase = entry.context_phrase
+        tokens = []
+        categories = []  # first-occurrence order, unmarked tokens skipped
+        if phrase is not None:
+            for word in phrase.words:
+                category = grammar.category_for(word.pos, word.text.lower(), language)
+                tokens.append(TokenView(text=word.text, category=category,
+                                        tooltip=self._token_tooltip(word, entry, language),
+                                        selected=self._is_selected_token(word, entry)))
+                if category is not grammar.Category.UNMARKED and category not in categories:
+                    categories.append(category)
+        self.ui.phraseView.set_tokens(tokens)
+        self._rebuild_legend(categories)
+
+    def _token_tooltip(self, word, entry, language) -> str:
+        suffix = grammar.message_suffix(
+            grammar.category_for(word.pos, word.text.lower(), language))
+        if suffix is None:
+            return ''
+        pos_name = i18n.tr('pos_name_' + suffix)
+        tooltip = (f'<b>{html.escape(word.text)}</b><br>'
+                   + i18n.tr('token_lemma_line', lemma=html.escape(word.lemma), pos=pos_name))
+        morphology = grammar.morphology_line(word.morph, i18n.tr)
+        if morphology:
+            tooltip += f'<br>{html.escape(morphology)}'
+        if self._is_selected_token(word, entry):
+            tooltip += f'<br>{entry.count}\u00d7'
+        return tooltip
+
+    @staticmethod
+    def _is_selected_token(word, entry) -> bool:
+        return word.lemma == entry.word or word.text.lower() == entry.word.lower()
+
+    def _rebuild_legend(self, categories):
+        layout = self.ui.legendLayout
+        while layout.count() > 1:  # index 0 is the legendLabel
+            item = layout.takeAt(layout.count() - 1)
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
+        for category in categories:
+            suffix = grammar.message_suffix(category)
+            chip = PosChip()
+            chip.set_data(category, i18n.tr('pos_name_' + suffix))
+            chip.setToolTip(i18n.tr('pos_tip_' + suffix))
+            layout.addWidget(chip)
 
     def populate_words_list(self):
         result = self.controller.current_result

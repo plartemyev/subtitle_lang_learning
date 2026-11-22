@@ -107,3 +107,253 @@ msgstr "show debug logging output"
 
 msgid "cli_ui_language_help"
 msgstr "interface language code (default: %(default)s)"
+
+#. Pedagogical grammar symbols (Montessori): category display names.
+msgid "pos_name_noun"
+msgstr "noun"
+
+msgid "pos_name_propn"
+msgstr "proper noun"
+
+msgid "pos_name_art"
+msgstr "article"
+
+msgid "pos_name_adj"
+msgstr "adjective"
+
+msgid "pos_name_verb"
+msgstr "verb"
+
+msgid "pos_name_aux"
+msgstr "auxiliary verb"
+
+msgid "pos_name_part"
+msgstr "particle"
+
+msgid "pos_name_adp"
+msgstr "preposition"
+
+msgid "pos_name_pron"
+msgstr "pronoun"
+
+msgid "pos_name_adv"
+msgstr "adverb"
+
+msgid "pos_name_conj"
+msgstr "conjunction"
+
+msgid "pos_name_intj"
+msgstr "interjection"
+
+#. Pedagogical grammar symbols (Montessori): per-category explanations.
+msgid "pos_tip_noun"
+msgstr "A person, place or thing. Montessori: the pyramid — solid and stable, things exist."
+
+msgid "pos_tip_propn"
+msgstr "The name of a particular person, place or thing. Marked with a star above the noun pyramid."
+
+msgid "pos_tip_art"
+msgstr "Introduces a noun: 'a', 'the'. Montessori: a small companion of the noun pyramid."
+
+msgid "pos_tip_adj"
+msgstr "Describes a noun: 'good', 'first'. Montessori: the dark-blue triangle leaning on the pyramid."
+
+msgid "pos_tip_verb"
+msgstr "An action or a state: 'run', 'be', 'know'. Montessori: the red sphere — it moves, like the sun."
+
+msgid "pos_tip_aux"
+msgstr "A helper beside the main verb: 'is', 'have'. Extension: the verb's sphere, hollow."
+
+msgid "pos_tip_part"
+msgstr "A small word with a fixed grammar job: 'to' before a verb. Extension: a tiny verb sphere."
+
+msgid "pos_tip_adp"
+msgstr "Links a noun into the sentence: 'in', 'of', 'like'. Montessori: the green crescent — a bridge between words."
+
+msgid "pos_tip_pron"
+msgstr "Stands in the noun's place: 'you', 'who', 'it'. Montessori: the three-part triangle."
+
+msgid "pos_tip_adv"
+msgstr "Describes a verb or an adjective: 'very', 'well'. Montessori: the orange sphere rolling beside the verb."
+
+msgid "pos_tip_conj"
+msgstr "Joins equal parts: 'and', 'but', 'or'. Montessori: the pink strip stretched between words."
+
+msgid "pos_tip_intj"
+msgstr "An exclamation: 'oh', 'wow'. Montessori: the golden diamond."
+
+#. Word tooltip line inside the context phrase.
+msgid "token_lemma_line"
+msgstr "lemma {lemma} · {pos}"
+
+#. Extra usages of the selected word in another part of speech.
+msgid "pos_also_line"
+msgstr "also {items}"
+
+#. Legend label above the symbol chips of the context phrase.
+msgid "legend_in_phrase"
+msgstr "In this phrase"
+
+#. Legend hint for the per-word tooltips.
+msgid "legend_hint"
+msgstr "hover any word for its lemma and grammar"
+
+#. Universal Dependencies morphology values shown in word tooltips.
+msgid "morph_person_1"
+msgstr "1st person"
+
+msgid "morph_person_2"
+msgstr "2nd person"
+
+msgid "morph_person_3"
+msgstr "3rd person"
+
+msgid "morph_number_sing"
+msgstr "singular"
+
+msgid "morph_number_plur"
+msgstr "plural"
+
+msgid "morph_tense_pres"
+msgstr "present"
+
+msgid "morph_tense_past"
+msgstr "past"
+
+msgid "morph_tense_fut"
+msgstr "future"
+
+msgid "morph_tense_imp"
+msgstr "imperfect"
+
+msgid "morph_verbform_fin"
+msgstr "finite"
+
+msgid "morph_verbform_inf"
+msgstr "infinitive"
+
+msgid "morph_verbform_part"
+msgstr "participle"
+
+msgid "morph_verbform_conv"
+msgstr "converb"
+
+msgid "morph_verbform_ger"
+msgstr "gerund"
+
+msgid "morph_mood_ind"
+msgstr "indicative"
+
+msgid "morph_mood_imp"
+msgstr "imperative"
+
+msgid "morph_mood_sub"
+msgstr "subjunctive"
+
+msgid "morph_mood_cnd"
+msgstr "conditional"
+
+msgid "morph_aspect_imp"
+msgstr "imperfective"
+
+msgid "morph_aspect_perf"
+msgstr "perfective"
+
+msgid "morph_aspect_prog"
+msgstr "progressive"
+
+msgid "morph_degree_pos"
+msgstr "positive"
+
+msgid "morph_degree_cmp"
+msgstr "comparative"
+
+msgid "morph_degree_sup"
+msgstr "superlative"
+
+msgid "morph_case_nom"
+msgstr "nominative"
+
+msgid "morph_case_acc"
+msgstr "accusative"
+
+msgid "morph_case_dat"
+msgstr "dative"
+
+msgid "morph_case_gen"
+msgstr "genitive"
+
+msgid "morph_case_ins"
+msgstr "instrumental"
+
+msgid "morph_case_loc"
+msgstr "locative"
+
+msgid "morph_case_voc"
+msgstr "vocative"
+
+msgid "morph_gender_fem"
+msgstr "feminine"
+
+msgid "morph_gender_masc"
+msgstr "masculine"
+
+msgid "morph_gender_neut"
+msgstr "neuter"
+
+msgid "morph_animacy_anim"
+msgstr "animate"
+
+msgid "morph_animacy_inan"
+msgstr "inanimate"
+
+msgid "morph_voice_act"
+msgstr "active"
+
+msgid "morph_voice_mid"
+msgstr "medial"
+
+msgid "morph_voice_pass"
+msgstr "passive"
+
+msgid "morph_definite_def"
+msgstr "definite"
+
+msgid "morph_definite_ind"
+msgstr "indefinite"
+
+msgid "morph_prontype_prs"
+msgstr "personal"
+
+msgid "morph_prontype_dem"
+msgstr "demonstrative"
+
+msgid "morph_prontype_int"
+msgstr "interrogative"
+
+msgid "morph_prontype_rel"
+msgstr "relative"
+
+msgid "morph_prontype_ind"
+msgstr "indefinite"
+
+msgid "morph_prontype_tot"
+msgstr "total"
+
+msgid "morph_prontype_neg"
+msgstr "negative"
+
+msgid "morph_poss_yes"
+msgstr "possessive"
+
+msgid "morph_reflex_yes"
+msgstr "reflexive"
+
+msgid "morph_polarity_neg"
+msgstr "negative"
+
+msgid "morph_numtype_card"
+msgstr "cardinal"
+
+msgid "morph_numtype_ord"
+msgstr "ordinal"

@@ -109,3 +109,253 @@ msgstr "показывать отладочные сообщения"
 
 msgid "cli_ui_language_help"
 msgstr "код языка интерфейса (по умолчанию: %(default)s)"
+
+#. Pedagogical grammar symbols (Montessori): category display names.
+msgid "pos_name_noun"
+msgstr "существительное"
+
+msgid "pos_name_propn"
+msgstr "имя собственное"
+
+msgid "pos_name_art"
+msgstr "артикль"
+
+msgid "pos_name_adj"
+msgstr "прилагательное"
+
+msgid "pos_name_verb"
+msgstr "глагол"
+
+msgid "pos_name_aux"
+msgstr "вспомогательный глагол"
+
+msgid "pos_name_part"
+msgstr "частица"
+
+msgid "pos_name_adp"
+msgstr "предлог"
+
+msgid "pos_name_pron"
+msgstr "местоимение"
+
+msgid "pos_name_adv"
+msgstr "наречие"
+
+msgid "pos_name_conj"
+msgstr "союз"
+
+msgid "pos_name_intj"
+msgstr "междометие"
+
+#. Pedagogical grammar symbols (Montessori): per-category explanations.
+msgid "pos_tip_noun"
+msgstr "Человек, место или предмет. Монтессори: пирамида — устойчивая и твёрдая, вещи существуют."
+
+msgid "pos_tip_propn"
+msgstr "Имя конкретного человека, места или предмета. Отмечено звёздочкой над пирамидой."
+
+msgid "pos_tip_art"
+msgstr "Вводит существительное: 'a', 'the'. Монтессори: маленький спутник пирамиды."
+
+msgid "pos_tip_adj"
+msgstr "Описывает существительное: 'хороший', 'первый'. Монтессори: тёмно-синий треугольник рядом с пирамидой."
+
+msgid "pos_tip_verb"
+msgstr "Действие или состояние: 'бежать', 'быть', 'знать'. Монтессори: красный шар — он движется, как солнце."
+
+msgid "pos_tip_aux"
+msgstr "Помощник рядом с основным глаголом: 'быть', 'иметь'. Расширение: шар глагола, полый."
+
+msgid "pos_tip_part"
+msgstr "Маленькое слово с фиксированной грамматической ролью: 'to' перед глаголом. Расширение: крошечный шар глагола."
+
+msgid "pos_tip_adp"
+msgstr "Связывает существительное с предложением: 'в', 'из', 'как'. Монтессори: зелёный полумесяц — мост между словами."
+
+msgid "pos_tip_pron"
+msgstr "Заменяет собой существительное: 'ты', 'кто', 'он'. Монтессори: треугольник из трёх частей."
+
+msgid "pos_tip_adv"
+msgstr "Описывает глагол или прилагательное: 'очень', 'хорошо'. Монтессори: оранжевый шар, катящийся рядом с глаголом."
+
+msgid "pos_tip_conj"
+msgstr "Соединяет равные части: 'и', 'но', 'или'. Монтессори: розовая полоска между словами."
+
+msgid "pos_tip_intj"
+msgstr "Восклицание: 'ох', 'вау'. Монтессори: золотой ромб."
+
+#. Word tooltip line inside the context phrase.
+msgid "token_lemma_line"
+msgstr "лемма {lemma} · {pos}"
+
+#. Extra usages of the selected word in another part of speech.
+msgid "pos_also_line"
+msgstr "также {items}"
+
+#. Legend label above the symbol chips of the context phrase.
+msgid "legend_in_phrase"
+msgstr "Во фразе"
+
+#. Legend hint for the per-word tooltips.
+msgid "legend_hint"
+msgstr "наведите курсор на слово — лемма и грамматика"
+
+#. Universal Dependencies morphology values shown in word tooltips.
+msgid "morph_person_1"
+msgstr "1-е лицо"
+
+msgid "morph_person_2"
+msgstr "2-е лицо"
+
+msgid "morph_person_3"
+msgstr "3-е лицо"
+
+msgid "morph_number_sing"
+msgstr "единственное число"
+
+msgid "morph_number_plur"
+msgstr "множественное число"
+
+msgid "morph_tense_pres"
+msgstr "настоящее время"
+
+msgid "morph_tense_past"
+msgstr "прошедшее время"
+
+msgid "morph_tense_fut"
+msgstr "будущее время"
+
+msgid "morph_tense_imp"
+msgstr "имперфект"
+
+msgid "morph_verbform_fin"
+msgstr "личная форма"
+
+msgid "morph_verbform_inf"
+msgstr "инфинитив"
+
+msgid "morph_verbform_part"
+msgstr "причастие"
+
+msgid "morph_verbform_conv"
+msgstr "деепричастие"
+
+msgid "morph_verbform_ger"
+msgstr "герундий"
+
+msgid "morph_mood_ind"
+msgstr "изъявительное наклонение"
+
+msgid "morph_mood_imp"
+msgstr "повелительное наклонение"
+
+msgid "morph_mood_sub"
+msgstr "сослагательное наклонение"
+
+msgid "morph_mood_cnd"
+msgstr "условное наклонение"
+
+msgid "morph_aspect_imp"
+msgstr "несовершенный вид"
+
+msgid "morph_aspect_perf"
+msgstr "совершенный вид"
+
+msgid "morph_aspect_prog"
+msgstr "прогрессив"
+
+msgid "morph_degree_pos"
+msgstr "положительная степень"
+
+msgid "morph_degree_cmp"
+msgstr "сравнительная степень"
+
+msgid "morph_degree_sup"
+msgstr "превосходная степень"
+
+msgid "morph_case_nom"
+msgstr "именительный падеж"
+
+msgid "morph_case_acc"
+msgstr "винительный падеж"
+
+msgid "morph_case_dat"
+msgstr "дательный падеж"
+
+msgid "morph_case_gen"
+msgstr "родительный падеж"
+
+msgid "morph_case_ins"
+msgstr "творительный падеж"
+
+msgid "morph_case_loc"
+msgstr "предложный падеж"
+
+msgid "morph_case_voc"
+msgstr "звательный падеж"
+
+msgid "morph_gender_fem"
+msgstr "женский род"
+
+msgid "morph_gender_masc"
+msgstr "мужской род"
+
+msgid "morph_gender_neut"
+msgstr "средний род"
+
+msgid "morph_animacy_anim"
+msgstr "одушевлённое"
+
+msgid "morph_animacy_inan"
+msgstr "неодушевлённое"
+
+msgid "morph_voice_act"
+msgstr "актив"
+
+msgid "morph_voice_mid"
+msgstr "медиаль"
+
+msgid "morph_voice_pass"
+msgstr "пассив"
+
+msgid "morph_definite_def"
+msgstr "определённость"
+
+msgid "morph_definite_ind"
+msgstr "неопределённость"
+
+msgid "morph_prontype_prs"
+msgstr "личное"
+
+msgid "morph_prontype_dem"
+msgstr "указательное"
+
+msgid "morph_prontype_int"
+msgstr "вопросительное"
+
+msgid "morph_prontype_rel"
+msgstr "относительное"
+
+msgid "morph_prontype_ind"
+msgstr "неопределённое"
+
+msgid "morph_prontype_tot"
+msgstr "обобщённое"
+
+msgid "morph_prontype_neg"
+msgstr "отрицательное"
+
+msgid "morph_poss_yes"
+msgstr "притяжательное"
+
+msgid "morph_reflex_yes"
+msgstr "возвратное"
+
+msgid "morph_polarity_neg"
+msgstr "отрицание"
+
+msgid "morph_numtype_card"
+msgstr "количественное"
+
+msgid "morph_numtype_ord"
+msgstr "порядковое"

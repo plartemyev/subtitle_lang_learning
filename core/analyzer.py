@@ -43,6 +43,7 @@ def sanitize_phrase_text(raw_content: str) -> str:
 def _annotate_words(doc) -> list:
     """Result of the single spaCy pass over a phrase, kept for UI rendering and word lookups."""
     return [AnnotatedWord(text=token.text, lemma=normalize_lemma(token), pos=token.pos_,
+                          morph=str(token.morph),
                           start=token.idx, end=token.idx + len(token.text))
             for token in doc if not token.is_space]
 

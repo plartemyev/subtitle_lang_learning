@@ -11,11 +11,18 @@ class Language:
     code: str  # canonical key used across the application, e.g. 'deu'
     opensubtitles_code: str  # OpenSubtitles.org language id (uses 'ger' for German)
     spacy_model: str  # spaCy model used for lemmatization and POS tagging
+    # Definite/indefinite article forms, lowercased. spaCy tags them DET like
+    # every other determiner; frontends use this set to tell articles apart
+    # (empty for languages without articles, e.g. Russian).
+    article_words: frozenset = frozenset()
 
 
 LANGUAGES = {
-    'eng': Language(code='eng', opensubtitles_code='eng', spacy_model='en_core_web_sm'),
-    'deu': Language(code='deu', opensubtitles_code='ger', spacy_model='de_core_news_sm'),
+    'eng': Language(code='eng', opensubtitles_code='eng', spacy_model='en_core_web_sm',
+                    article_words=frozenset(('a', 'an', 'the'))),
+    'deu': Language(code='deu', opensubtitles_code='ger', spacy_model='de_core_news_sm',
+                    article_words=frozenset(('der', 'die', 'das', 'ein', 'eine', 'einen',
+                                             'einem', 'einer', 'eines'))),
     'rus': Language(code='rus', opensubtitles_code='rus', spacy_model='ru_core_news_sm'),
 }
 

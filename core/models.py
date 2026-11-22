@@ -14,6 +14,9 @@ class AnnotatedWord:
     pos: str
     start: int  # character offset within the phrase text
     end: int
+    # Universal Dependencies features string, e.g. 'Number=Sing|Person=3|Tense=Pres';
+    # empty for tokens without morphology (punctuation, uninflected words).
+    morph: str = ''
 
 
 @dataclass
