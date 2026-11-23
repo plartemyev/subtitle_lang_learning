@@ -3,6 +3,10 @@ services:
     build: .
     ports:
       - "8000:8000"
+    environment:
+      - SUBTITLE_LEARNING_DATA_DIR=/app/data
+    volumes:
+      - ./data:/app/data
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c",

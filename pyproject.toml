@@ -1,0 +1,60 @@
+# Python environment for every frontend (desktop Qt, CLI, web), managed by
+# Poetry 2.x. The project is a flat application layout, not an installable
+# package, hence package-mode = false. See README for per-use-case commands.
+[tool.poetry]
+package-mode = false
+
+[tool.poetry.dependencies]
+# verified range: the compiled stack ships wheels for these interpreters and
+# the upper bound follows spaCy/thinc's own horizon
+python = ">=3.14,<3.15"
+# analysis + offline translation runtime, shared by all frontends
+chardet = "^5.2"
+srt = "^3.5.3"
+spacy = "^3.8"
+# floors for spaCy's compiled stack: older lines still valid for the wide
+# python range lack wheels for recent interpreters (proven set on py3.14)
+blis = ">=1.3"
+srsly = ">=2.5"
+thinc = ">=8.3"
+cymem = ">=2.0.16"
+murmurhash = ">=1.0.16"
+preshed = ">=3.0.15"
+# offline translation engine (runtime never needs torch)
+ctranslate2 = "^4.5"
+transformers = ">=4.44"
+sentencepiece = "^0.2"
+# spaCy language models (pinned wheels, py3-none-any)
+en-core-web-sm = {url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl"}
+de-core-news-sm = {url = "https://github.com/explosion/spacy-models/releases/download/de_core_news_sm-3.8.0/de_core_news_sm-3.8.0-py3-none-any.whl"}
+ru-core-news-sm = {url = "https://github.com/explosion/spacy-models/releases/download/ru_core_news_sm-3.8.0/ru_core_news_sm-3.8.0-py3-none-any.whl"}
+
+[tool.poetry.group.web]
+optional = true
+
+[tool.poetry.group.web.dependencies]
+fastapi = "^0.115"
+uvicorn = "^0.34"
+httpx = "^0.27"
+python-multipart = "^0.0.20"
+
+[tool.poetry.group.desktop]
+optional = true
+
+[tool.poetry.group.desktop.dependencies]
+pyqt6 = ">=6.8"
+pyqt6-webengine = ">=6.8"
+
+[tool.poetry.group.tools]
+optional = true
+
+[tool.poetry.group.tools.dependencies]
+# one-time NLLB model conversion only; CPU wheels from the explicit source
+torch = {version = ">=2.4", source = "pytorch-cpu"}
+# faster JSONL parsing when building the dictionary (optional)
+orjson = ">=3.10"
+
+[[tool.poetry.source]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+priority = "explicit"

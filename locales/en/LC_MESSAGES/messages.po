@@ -30,6 +30,26 @@ msgid_plural "no_parseable_subtitles_plural"
 msgstr[0] "Unable to parse any subtitle file out of {count}"
 msgstr[1] "Unable to parse any subtitle file out of {count}"
 
+#. Shown when offline translation is requested but the model is not prepared or failed.
+msgid "translation_unavailable"
+msgstr "Offline translation is unavailable (translation model not prepared)"
+
+#. Caption of the offline phrase-translation block under the context phrase.
+msgid "translation_label"
+msgstr "Translation"
+
+#. Tooltip line: the aligned translation of the hovered token (offline model).
+msgid "token_translation_line"
+msgstr "translation: {translation}"
+
+#. Tooltip line: Wiktionary translations of the hovered token into the UI language.
+msgid "token_dictionary_line"
+msgstr "Wiktionary: {translations}"
+
+#. Tooltip line: the Wiktionary sense gloss of the hovered token.
+msgid "token_gloss_line"
+msgstr "“{gloss}”"
+
 #. Meta line in the word details pane: entry.count occurrences of the word.
 msgid "word_meta_line"
 msgid_plural "word_meta_line_plural"

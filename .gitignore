@@ -5,3 +5,7 @@ __pycache__/
 /tmp/
 /.zcode/
 /samples/
+/.env
+/data/
+/.venv/
+/venv/

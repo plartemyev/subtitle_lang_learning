@@ -5,14 +5,14 @@ FROM archlinux:latest
 RUN pacman -Syu --noconfirm python \
     && pacman -Scc --noconfirm
 
-# arch marks system python as externally managed (PEP 668): the sanctioned
-# way to pip-install in a container is a dedicated venv
-RUN python -m venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
-
+# arch marks system python as externally managed (PEP 668): poetry runs from
+# a scratch venv and gets its own in-project virtualenv (/app/.venv) instead
+# of touching the pacman-owned system tree
 WORKDIR /app
-COPY requirements-web.txt .
-RUN python -m pip install --no-cache-dir -r requirements-web.txt
+COPY pyproject.toml poetry.lock ./
+RUN python -m venv /opt/venv \
+    && /opt/venv/bin/pip install --no-cache-dir poetry \
+    && POETRY_VIRTUALENVS_IN_PROJECT=true /opt/venv/bin/poetry install --only main,web
 
 COPY core/ core/
 COPY locales/ locales/
@@ -20,4 +20,4 @@ COPY web/ web/
 COPY ui/__init__.py ui/i18n.py ui/
 
 EXPOSE 8000
-CMD ["python", "-m", "uvicorn", "web.app:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["/app/.venv/bin/python", "-m", "uvicorn", "web.app:app", "--host", "0.0.0.0", "--port", "8000"]

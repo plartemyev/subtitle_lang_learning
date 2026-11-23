@@ -29,6 +29,21 @@ msgid "no_parseable_subtitles"
 msgid_plural "no_parseable_subtitles_plural"
 msgstr[0] "ไม่สามารถอ่านไฟล์คำบรรยายได้เลย จากทั้งหมด {count} ไฟล์"
 
+msgid "translation_unavailable"
+msgstr "การแปลออฟไลน์ใช้ไม่ได้ (ยังไม่ได้เตรียมโมเดลสำหรับการแปล)"
+
+msgid "translation_label"
+msgstr "คำแปล"
+
+msgid "token_translation_line"
+msgstr "คำแปล: {translation}"
+
+msgid "token_dictionary_line"
+msgstr "วิกิพจนานุกรม: {translations}"
+
+msgid "token_gloss_line"
+msgstr "“{gloss}”"
+
 #. Meta line in the word details pane: entry.count occurrences of the word.
 msgid "word_meta_line"
 msgid_plural "word_meta_line_plural"

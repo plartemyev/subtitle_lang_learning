@@ -30,6 +30,21 @@ msgstr[0] "Не удалось разобрать {count} файл субтит�
 msgstr[1] "Не удалось разобрать ни один из {count} файлов субтитров"
 msgstr[2] "Не удалось разобрать ни один из {count} файлов субтитров"
 
+msgid "translation_unavailable"
+msgstr "Автономный перевод недоступен (модель перевода не подготовлена)"
+
+msgid "translation_label"
+msgstr "Перевод"
+
+msgid "token_translation_line"
+msgstr "перевод: {translation}"
+
+msgid "token_dictionary_line"
+msgstr "Викисловарь: {translations}"
+
+msgid "token_gloss_line"
+msgstr "«{gloss}»"
+
 #. Meta line in the word details pane: entry.count occurrences of the word.
 msgid "word_meta_line"
 msgid_plural "word_meta_line_plural"

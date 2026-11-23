@@ -6,6 +6,9 @@
 .zcode
 .directory
 venv
+.venv
+.env
+data
 tmp
 samples
 原型

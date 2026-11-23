@@ -54,6 +54,12 @@ def _annotate_words(doc) -> list:
             for token in doc if not token.is_space]
 
 
+def tokenize_phrase(text: str, language_code: str) -> list:
+    """Token-annotate a single phrase for translation and dictionary lookups."""
+    language = resolve_language(language_code)
+    return _annotate_words(get_nlp(language)(text))
+
+
 def read_subtitles_file(sub_file_path: str) -> str:
     logger.info(f'Reading file {sub_file_path}')
     detector = UniversalDetector()

@@ -56,9 +56,8 @@ one-to-one. The whole stack ships as one container:
     docker compose up --build
     # then open http://127.0.0.1:8000
 
-Without Docker: install `requirements-web.txt` (FastAPI, uvicorn, chardet,
-srt, spaCy + the language models - no Qt) and run
-`python3 -m uvicorn web.app:app --host 0.0.0.0 --port 8000`.
+Without Docker: `poetry install --with web` and run
+`poetry run python -m uvicorn web.app:app --host 0.0.0.0 --port 8000`.
 The page is plain HTML/JS/CSS from our own origin, no third-party scripts.
 The API consumed by the page (handy for scripting):
 
@@ -66,7 +65,49 @@ The API consumed by the page (handy for scripting):
 * `POST /api/analyze/file` - multipart `file` + `language` form fields;
 * `POST /api/analyze/online` - JSON body `{"query": ..., "language": ...}`,
   returns `{analysis, messages}` where `messages` carry the localizable
-  event codes.
+  event codes;
+* `POST /api/translate/phrase` - JSON body `{"text": ..., "language": ...,
+  "target": ...}`, returns `{translation, words, cached}` where `words`
+  carry one aligned translation per phrase token (null when not confident)
+  and `cached` marks sqlite LRU cache hits;
+* `GET /api/dictionary/lookup?language=&target=&word=&lemma=&pos=` -
+  Wiktionary glosses and translations for one word.
+
+OFFLINE TRANSLATION
+-------------------
+The web backend translates without any online provider: NLLB-200-distilled-600M
+(Meta, CC-BY-NC-4.0 - noncommercial use only) runs under CTranslate2 on CPU.
+One decoding pass produces the phrase translation *and* the cross-attention
+matrix, from which per-word translations are derived; words below the
+confidence threshold carry no translation and can fall back to the
+Wiktionary dictionary layer. Phrase translation calls are cached in an
+sqlite LRU cache (~2 GiB budget, counter based).
+
+Everything lives outside the repository in the data directory (`data/`
+by default, override with `SUBTITLE_LEARNING_DATA_DIR`):
+
+    data/models/nllb-600m-ct2/       converted model + tokenizer files
+    data/dictionary/kaikki.sqlite    Wiktionary glosses/translations lookup
+    data/cache/translations.sqlite   phrase translation LRU cache
+
+Prepare once (the dictionary first run streams ~3.4 GB of Wiktionary dumps;
+the model preparation downloads ~2.4 GB of weights and needs the poetry
+tools group with CPU torch):
+
+    poetry install --with web,tools
+    poetry run python tools/prepare_nllb.py
+    poetry run python tools/build_dictionary.py
+
+A HuggingFace token speeds the model download up: put `HF_TOKEN=...` into
+the gitignored `.env` file next to the repository. Both pieces degrade
+gracefully: without the model `/api/translate/phrase` answers 503
+`translation_unavailable`, without the dictionary `/api/dictionary/lookup`
+returns no entries. The docker compose stack mounts `./data` into the
+container, so one directory serves a local and a containerized backend.
+
+Attribution: dictionary data is extracted from Wiktionary via
+wiktextract/kaikki.org (CC BY-SA 4.0); NLLB-200 weights are CC-BY-NC-4.0
+(research model, noncommercial use only).
 
 ARCHITECTURE
 ------------
@@ -83,8 +124,10 @@ import a UI framework (`PyQt6` or any other). Frontends live on their own:
 * `locales/` - the UI catalogs (ISO-639-1 `de`/`en`/`ru`/`th`), keyed by stable message
   codes; `en` is the reference locale and every locale ships a complete catalog;
 * `core/` - languages registry (neutral ISO-like codes `eng`/`deu`/`rus`), subtitle
-  analyzer, OpenSubtitles.org client, translation helpers and `AppController`
-  orchestrating it all. User-facing events are emitted as structured messages
+  analyzer, OpenSubtitles.org client, translation helpers (the Google Translate URL
+  builder, the offline NLLB/CTranslate2 provider with attention word alignment in
+  `core/translation/`, the Wiktionary dictionary in `core/dictionary.py`) and
+  `AppController` orchestrating it all. User-facing events are emitted as structured messages
   (code + params) and rendered by the frontend, keeping the core free of display
   text - that is the groundwork for localization and additional UI targets.
 
@@ -99,48 +142,50 @@ recompile and commit both:
 
 Run the checks (catalog completeness, plural rules, Qt retranslation) with:
 
-    python3 -m unittest discover tests
+    poetry run python3 -m unittest discover tests
 
 (the catalog tests need `msgfmt` from the gettext tools; Qt tests run offscreen).
 
 REQUIREMENTS
 -------------
-App requires **python>=3.8**, **PyQt6**, **PyQt6-WebEngine**, **chardet**, **srt** and **spacy**
-(with English, German and Russian language models).
+The Python environment is managed with **Poetry 2.x** (see `pyproject.toml`;
+an in-project `.venv` is created automatically) and requires **python>=3.14**.
+Install per use case: `poetry install` (CLI/core), `--with desktop` (Qt GUI),
+`--with web` (web backend), `--with tools` (one-time offline model conversion).
+SpaCy ships the English, German and Russian language models as pinned wheels.
 
 INSTALLATION
 ------------
 ### On Linux:
-* Install Python 3.x and PIP via your distribution package manager.
-* Clone or download this repository. 
-* Try to install requirements also with package manager. And only if some
-requirements are still missing - install them with PIP:  
-**pip3 install --user -r subtitle_lang_learning/requirements.txt**
-* Run the GUI application: `python3 main.py`  
-Or analyze subtitles in the terminal: `python3 cli.py <SRT-file-or-title> --language deu`
+* Install Python 3.14+ and Poetry 2.x via your distribution package manager.
+* Clone or download this repository.
+* Install the environment for your frontend: `poetry install` (CLI),
+  `poetry install --with desktop` (GUI) or `poetry install --with web` (web backend).
+* Run the GUI application: `poetry run python main.py`
+Or analyze subtitles in the terminal: `poetry run python cli.py <SRT-file-or-title> --language deu`
 
 ### On Windows:
-* Install x86-64 Python 3.x: From [https://www.python.org/downloads/windows/]  
-select "Download Windows x86-64 executable installer".  
-When installing, check "Add Python to PATH";
+* Install x86-64 Python 3.14+: From [https://www.python.org/downloads/windows/]
+  select "Download Windows x86-64 executable installer".
+  When installing, check "Add Python to PATH";
+* Install Poetry: [https://python-poetry.org/docs/#installation]
 * Download this program from this page by clicking on the "Clone or download" button
-and selecting "Download ZIP". Then unpack the archive.
-* Install requirements with PIP, E. G. Open a command prompt and execute:  
-**pip3 install --user -r Downloads/subtitle_lang_learning-master/requirements.txt**
-* Run the program from the command prompt: `python main.py`
+  and selecting "Download ZIP". Then unpack the archive.
+* In a command prompt inside the unpacked directory run: `poetry install --with desktop`
+* Run the program from the command prompt: `poetry run python main.py`
 
 ### On macOS 10.9 and later
 * Download and install the latest **macOS 64-bit universal2 installer** from the official website
-[https://www.python.org/downloads/macos/] 
-* Check that you have Git installed [https://github.com/git-guides/install-git/] 
+  [https://www.python.org/downloads/macos/]
+* Check that you have Git installed [https://github.com/git-guides/install-git/]
 * Open the command prompt "terminal" and execute `git clone git@github.com:plartemyev/subtitle_lang_learning.git`
-* Then execute `pip3 install --user -r subtitle_lang_learning/requirements.txt`
-* And run the program by executing `python3 main.py`
+* Change into the directory and run: `poetry install --with desktop`
+* And run the program by executing `poetry run python3 main.py`
 
 
 TODO
 ----
-* [ ] Embed some local dictionary.
+* [x] Embed a local dictionary (Wiktionary via kaikki.org; see OFFLINE TRANSLATION).
 * [x] Use lemmas to eliminate redundant word forms (done with spaCy, for English, German and Russian).
 * [ ] Add ability to save already remembered words to exclude it from further searches.
 * [ ] Embed video player, to be able to load video files with subtitles and jump to

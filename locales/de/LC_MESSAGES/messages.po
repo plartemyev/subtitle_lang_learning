@@ -29,6 +29,21 @@ msgid_plural "no_parseable_subtitles_plural"
 msgstr[0] "Die Untertitel-Datei konnte nicht verarbeitet werden"
 msgstr[1] "Keine der {count} Untertitel-Dateien konnte verarbeitet werden"
 
+msgid "translation_unavailable"
+msgstr "Offline-Übersetzung ist nicht verfügbar (Übersetzungsmodell nicht vorbereitet)"
+
+msgid "translation_label"
+msgstr "Übersetzung"
+
+msgid "token_translation_line"
+msgstr "Übersetzung: {translation}"
+
+msgid "token_dictionary_line"
+msgstr "Wiktionary: {translations}"
+
+msgid "token_gloss_line"
+msgstr "„{gloss}“"
+
 #. Meta line in the word details pane: entry.count occurrences of the word.
 msgid "word_meta_line"
 msgid_plural "word_meta_line_plural"

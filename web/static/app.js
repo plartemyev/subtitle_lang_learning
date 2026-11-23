@@ -18,6 +18,15 @@ const state = {
 let warning = null;  // list of {code, params} core events or null
 let busy = false;
 
+/* Offline phrase translation (NLLB) + Wiktionary enrichment, lazily fetched
+ * per phrase and per UI locale; the resolved payloads are what the tooltip
+ * builders and the translation line read. */
+const phraseFetches = new Map();      // locale|language|text -> Promise<payload>
+const phrasePayloads = new Map();     // same key -> resolved payload
+const dictionaryFetches = new Map();  // locale|language|word|lemma|pos -> Promise
+const dictionaryPayloads = new Map(); // same key -> resolved payload
+let phraseTranslationTimer = null;
+
 /* QToolTip-style global bubble: a single body-level layer shown near the
  * hovered/focused token or chip and clamped to the viewport, so tooltips
  * never clip against pane edges the way inline positioned spans would. */
@@ -35,12 +44,16 @@ function el(id) {
 
 /* ---------- busy / warning status line ---------- */
 
+function spinnerNode() {
+  const spinner = document.createElement('span');
+  spinner.className = 'spinner';
+  return spinner;
+}
+
 function renderStatus() {
   if (busy) {
     els.statusLine.className = 'busy';
-    const spinner = document.createElement('span');
-    spinner.className = 'spinner';
-    els.statusLine.replaceChildren(spinner);
+    els.statusLine.replaceChildren(spinnerNode());
     els.statusLine.hidden = false;
   } else if (warning && warning.length) {
     els.statusLine.className = '';
@@ -108,6 +121,7 @@ function retranslate() {
   els.contextLabel.textContent = i18n.tr('context_label');
   els.legendLabel.textContent = i18n.tr('legend_in_phrase');
   els.legendHint.textContent = i18n.tr('legend_hint');
+  els.phraseTranslationLabel.textContent = i18n.tr('translation_label');
   for (const option of els.symbolSystem.options) {
     if (option.value === 'ui') option.textContent = i18n.tr('symbol_system_ui');
     if (option.value === 'subtitle') option.textContent = i18n.tr('symbol_system_subtitle');
@@ -115,6 +129,8 @@ function retranslate() {
   populateSubtitleLanguages();
   renderWarning();
   renderDetails();
+  // the translation target follows the UI locale: refetch under the new one
+  schedulePhraseTranslation();
 }
 
 function populateSubtitleLanguages() {
@@ -187,6 +203,7 @@ function selectWord(word) {
   const item = els.wordsList.querySelector('[data-word="' + CSS.escape(word) + '"]');
   if (item) item.classList.add('selected');
   renderDetails();
+  schedulePhraseTranslation();
 }
 
 /* ---------- word details pane (port of _render_word_meta) ---------- */
@@ -259,7 +276,7 @@ function isTokenSelected(word, entry) {
   return word.lemma === entry.word || word.text.toLowerCase() === entry.word.toLowerCase();
 }
 
-function tokenTip(word, entry, language) {
+function tokenTip(word, entry, language, phrase) {
   const category = grammar.categoryFor(word.pos, word.text.toLowerCase(), language);
   if (category === grammar.Category.UNMARKED) return null;
   const posName = i18n.tr('pos_name_' + grammar.messageSuffix(category));
@@ -272,13 +289,45 @@ function tokenTip(word, entry, language) {
   if (morphology) {
     nodes.push(document.createElement('br'), document.createTextNode(morphology));
   }
+  appendTranslationLines(nodes, word, language, phrase);
   if (selected) {
     nodes.push(document.createElement('br'), document.createTextNode(entry.count + '\u00d7'));
   }
   return nodes;
 }
 
-function buildToken(word, category, entry, language) {
+/* Aligned NLLB translation + Wiktionary gloss/translations of the hovered
+ * token, both into the active UI locale; absent while still fetching. */
+function appendTranslationLines(nodes, word, language, phrase) {
+  const payload = phrase ? phrasePayloads.get(phraseKey(phrase)) : null;
+  const index = phrase ? phrase.words.indexOf(word) : -1;
+  const aligned = payload && payload.words && payload.words[index]
+    ? payload.words[index].translation : null;
+  if (aligned) {
+    nodes.push(document.createElement('br'),
+               document.createTextNode(i18n.tr('token_translation_line',
+                                               {translation: aligned})));
+  }
+  const dictionary = dictionaryPayloads.get(dictionaryKey(word, language));
+  if (!dictionary || !dictionary.entries.length) return;
+  const terms = [];
+  let gloss = null;
+  for (const item of dictionary.entries) {
+    terms.push(...item.translations);
+    if (!gloss && item.glosses.length) gloss = item.glosses[0];
+  }
+  if (terms.length) {
+    nodes.push(document.createElement('br'),
+               document.createTextNode(i18n.tr('token_dictionary_line',
+                                               {translations: terms.join(', ')})));
+  }
+  if (gloss) {
+    nodes.push(document.createElement('br'),
+               document.createTextNode(i18n.tr('token_gloss_line', {gloss: gloss})));
+  }
+}
+
+function buildToken(word, category, entry, language, phrase) {
   const token = document.createElement('span');
   token.className = 'tok cat-' + category;
   token.tabIndex = 0;
@@ -290,8 +339,8 @@ function buildToken(word, category, entry, language) {
   label.textContent = word.text;
   token.append(symbol, label);
   if (isTokenSelected(word, entry)) token.classList.add('sel');
-  const tipNodes = tokenTip(word, entry, language);
-  if (tipNodes) tipBuilders.set(token, () => tokenTip(word, entry, language));
+  const tipNodes = tokenTip(word, entry, language, phrase);
+  if (tipNodes) tipBuilders.set(token, () => tokenTip(word, entry, language, phrase));
   return token;
 }
 
@@ -303,7 +352,7 @@ function renderPhrase(entry, language) {
   if (phrase) {
     for (const word of phrase.words) {
       const category = grammar.categoryFor(word.pos, word.text.toLowerCase(), language);
-      els.phraseView.append(buildToken(word, category, entry, language));
+      els.phraseView.append(buildToken(word, category, entry, language, phrase));
       if (category !== grammar.Category.UNMARKED && !categories.includes(category)) {
         categories.push(category);
       }
@@ -338,12 +387,117 @@ function onPhraseKeydown(event) {
   event.preventDefault();
 }
 
+/* ---------- offline phrase translation + dictionary enrichment ---------- */
+
+function selectedPhrase() {
+  const entry = state.analysis && state.analysis.words[state.selectedWord];
+  return entry && entry.phrase !== null && entry.phrase !== undefined
+    ? state.analysis.phrases[entry.phrase] : null;
+}
+
+function dictionaryKey(word, language) {
+  return [i18n.locale(), language.code, word.text.toLowerCase(), word.lemma, word.pos].join('|');
+}
+
+function phraseKey(phrase) {
+  return [i18n.locale(), state.analysis.language_code, phrase.text].join('|');
+}
+
+function fetchPhraseTranslation(phrase) {
+  const key = phraseKey(phrase);
+  if (!phraseFetches.has(key)) {
+    const request = fetch('/api/translate/phrase', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({text: phrase.text,
+                            language: state.analysis.language_code,
+                            target: i18n.locale()}),
+    }).then(async (response) => {
+      const payload = response.ok ? await response.json() : {unavailable: true};
+      phrasePayloads.set(key, payload);
+      return payload;
+    }).catch(() => {
+      const payload = {unavailable: true};
+      phrasePayloads.set(key, payload);
+      return payload;
+    });
+    phraseFetches.set(key, request);
+  }
+  return phraseFetches.get(key);
+}
+
+function fetchDictionaryEntry(word, language) {
+  const key = dictionaryKey(word, language);
+  if (!dictionaryFetches.has(key)) {
+    const query = new URLSearchParams({language: language.code, target: i18n.locale(),
+                                       word: word.text, lemma: word.lemma, pos: word.pos});
+    const request = fetch('/api/dictionary/lookup?' + query)
+      .then(async (response) => {
+        const payload = response.ok ? await response.json() : {entries: []};
+        dictionaryPayloads.set(key, payload);
+        return payload;
+      }).catch(() => {
+        const payload = {entries: []};
+        dictionaryPayloads.set(key, payload);
+        return payload;
+      });
+    dictionaryFetches.set(key, request);
+  }
+  return dictionaryFetches.get(key);
+}
+
+function schedulePhraseTranslation() {
+  clearTimeout(phraseTranslationTimer);
+  phraseTranslationTimer = setTimeout(updatePhraseTranslation, 300);
+}
+
+async function updatePhraseTranslation() {
+  const phrase = selectedPhrase();
+  if (!phrase) {
+    els.phraseTranslation.hidden = true;
+    return;
+  }
+  renderPhraseTranslation(phrase, null);  // spinner while the model decodes
+  const payload = await fetchPhraseTranslation(phrase);
+  if (selectedPhrase() !== phrase) return;  // selection moved on meanwhile
+  renderPhraseTranslation(phrase, payload);
+  // tooltips read the dictionary caches lazily, so just warm them per token
+  const language = currentLanguage();
+  for (const word of phrase.words) {
+    if (grammar.categoryFor(word.pos, word.text.toLowerCase(), language)
+        !== grammar.Category.UNMARKED) {
+      fetchDictionaryEntry(word, language);
+    }
+  }
+}
+
+function renderPhraseTranslation(phrase, payload) {
+  els.phraseTranslation.hidden = false;
+  const text = els.phraseTranslationText;
+  text.className = '';
+  if (!payload) {
+    text.replaceChildren(spinnerNode(), document.createTextNode(' '));
+    return;
+  }
+  if (payload.unavailable) {
+    text.className = 'unavailable';
+    text.textContent = i18n.tr('translation_unavailable');
+    return;
+  }
+  text.textContent = payload.translation;
+}
+
 /* ---------- analysis loading ---------- */
 
 function applyAnalysis(analysis) {
   state.analysis = analysis;
   state.selectedWord = '';
+  phraseFetches.clear();
+  phrasePayloads.clear();
+  dictionaryFetches.clear();
+  dictionaryPayloads.clear();
   els.details.hidden = true;
+  els.phraseTranslation.hidden = true;
   populateWordsList();
 }
 
@@ -494,6 +648,9 @@ async function init() {
   els.wordSubline = el('selected-word-subline');
   els.contextLabel = el('context-label');
   els.phraseView = el('phrase-view');
+  els.phraseTranslation = el('phrase-translation');
+  els.phraseTranslationLabel = el('phrase-translation-label');
+  els.phraseTranslationText = el('phrase-translation-text');
   els.legend = el('legend');
   els.legendLabel = el('legend-label');
   els.legendHint = el('legend-hint');
