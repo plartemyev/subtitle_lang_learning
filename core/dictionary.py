@@ -35,12 +35,26 @@ class KaikkiDictionary:
     def lookup(self, source_code, target_locale, word, lemma='', pos=''):
         """Dictionary entries for one token: surface form first, then lemma.
 
-        Entries tagged with the requested UPOS are preferred; Wiktionary and
-        spaCy disagree on POS often, so any POS of the same headword is
-        returned when nothing matches.
+        Rows carrying translations into the target locale win over gloss-only
+        rows - inflected forms usually have their own Wiktionary row with just
+        a relational gloss, and spaCy tags pronouns Wiktionary calls
+        determiners, so the preference applies within the headword too, not
+        only across headwords. POS-matching rows are still preferred inside
+        each preference tier; a headword wins over the next one only when it
+        has something to serve.
         """
-        wanted = dict.fromkeys([word.strip().lower(), lemma.strip().lower()])
-        for headword in (headword for headword in wanted if headword):
+        plain = None  # first gloss-only result, served when nothing richer exists
+
+        def entry(row):
+            return self._entry_to_dict(row, target_locale)
+
+        def rich_rows(rows_):
+            return [row for row in rows_ if json.loads(row['translations'])
+                    .get(target_locale)]
+
+        for headword in dict.fromkeys([word.strip().lower(), lemma.strip().lower()]):
+            if not headword:
+                continue
             rows = self._db.execute(
                 'SELECT pos, glosses, translations FROM entries '
                 'WHERE source = ? AND word = ? ORDER BY pos',
@@ -48,10 +62,15 @@ class KaikkiDictionary:
             if not rows:
                 continue
             matching = [row for row in rows if row['pos'] == pos] if pos else []
-            return {'word': word,
-                    'entries': [self._entry_to_dict(row, target_locale)
-                                for row in (matching or rows)[:MAX_ENTRIES]]}
-        return {'word': word, 'entries': []}
+            for tier in (matching, rows):
+                rich = [entry(row) for row in rich_rows(tier)[:MAX_ENTRIES]]
+                if rich:
+                    return {'word': word, 'entries': rich}
+            if plain is None:
+                served = matching or rows
+                plain = {'word': word,
+                         'entries': [entry(row) for row in served[:MAX_ENTRIES]]}
+        return plain if plain is not None else {'word': word, 'entries': []}
 
     def _entry_to_dict(self, row, target_locale):
         translations = json.loads(row['translations']).get(target_locale, [])

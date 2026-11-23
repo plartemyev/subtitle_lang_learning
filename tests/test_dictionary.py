@@ -29,6 +29,15 @@ FAMILY_ROW = ('eng', 'family', 'NOUN',
 VERB_ROW = ('eng', 'family', 'VERB',
             json.dumps(['To be part of a family']),
             json.dumps({}))
+FAMILIES_ROW = ('eng', 'families', 'NOUN',
+                json.dumps(['Plural of family']),
+                json.dumps({}))
+YOUR_DET_ROW = ('eng', 'your', 'DET',
+                json.dumps(['Belonging to you']),
+                json.dumps({'ru': ['твой', 'ваш']}))
+YOUR_PRON_ROW = ('eng', 'your', 'PRON',
+                 json.dumps(['Honorific form of you']),
+                 json.dumps({}))
 
 
 class KaikkiDictionaryTests(unittest.TestCase):
@@ -39,6 +48,9 @@ class KaikkiDictionaryTests(unittest.TestCase):
         db.execute(_SCHEMA)
         db.execute('INSERT OR IGNORE INTO entries VALUES (?, ?, ?, ?, ?)', FAMILY_ROW)
         db.execute('INSERT OR IGNORE INTO entries VALUES (?, ?, ?, ?, ?)', VERB_ROW)
+        db.execute('INSERT OR IGNORE INTO entries VALUES (?, ?, ?, ?, ?)', FAMILIES_ROW)
+        db.execute('INSERT OR IGNORE INTO entries VALUES (?, ?, ?, ?, ?)', YOUR_DET_ROW)
+        db.execute('INSERT OR IGNORE INTO entries VALUES (?, ?, ?, ?, ?)', YOUR_PRON_ROW)
         db.commit()
         db.close()
         self.dictionary = KaikkiDictionary(self.db_path)
@@ -61,6 +73,23 @@ class KaikkiDictionaryTests(unittest.TestCase):
     def test_lookup_falls_back_to_the_lemma(self):
         result = self.dictionary.lookup('eng', 'ru', 'families', lemma='family', pos='NOUN')
         self.assertEqual(result['entries'][0]['translations'], ['семья'])
+
+    def test_gloss_only_surface_row_does_not_shadow_the_lemma(self):
+        # inflected forms have their own Wiktionary row, gloss-only; the
+        # lemma's translations must still surface for the tooltip
+        result = self.dictionary.lookup('eng', 'ru', 'families', lemma='family', pos='NOUN')
+        self.assertEqual(result['entries'][0]['pos'], 'NOUN')
+        self.assertEqual(result['entries'][0]['translations'], ['семья'])
+
+    def test_gloss_only_rows_are_served_when_nothing_has_translations(self):
+        result = self.dictionary.lookup('eng', 'ru', 'families', lemma='zzzqx')
+        self.assertEqual(result['entries'][0]['glosses'], ['Plural of family'])
+
+    def test_rich_rows_of_another_pos_shadow_the_gloss_only_pos_match(self):
+        # spaCy tags 'your' PRON, Wiktionary files the translations under DET
+        result = self.dictionary.lookup('eng', 'ru', 'your', lemma='your', pos='PRON')
+        self.assertEqual(result['entries'][0]['pos'], 'DET')
+        self.assertEqual(result['entries'][0]['translations'], ['твой', 'ваш'])
 
     def test_lookup_filters_translations_by_target_locale(self):
         result = self.dictionary.lookup('eng', 'th', 'family', pos='NOUN')

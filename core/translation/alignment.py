@@ -12,7 +12,11 @@ translation and the UI can fall back to the dictionary gloss.
 """
 
 SENTINEL_PIECE = '▁'  # SentencePiece marker: the piece starts a new word
-CONFIDENCE_THRESHOLD = 0.2
+# NLLB cross-attention is diffuse (an EOS sink swallows most of the mass),
+# so even a "confident" vote is often misaligned; the dictionary layer is
+# the primary per-word source and this fallback line stays honest only when
+# the best target word holds at least half of the word's attention mass.
+CONFIDENCE_THRESHOLD = 0.5
 
 
 def drop_special_columns(vectors, keep_mask):

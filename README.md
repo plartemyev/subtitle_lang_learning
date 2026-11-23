@@ -71,17 +71,24 @@ The API consumed by the page (handy for scripting):
   carry one aligned translation per phrase token (null when not confident)
   and `cached` marks sqlite LRU cache hits;
 * `GET /api/dictionary/lookup?language=&target=&word=&lemma=&pos=` -
-  Wiktionary glosses and translations for one word.
+  Wiktionary glosses and translations for one word. The per-word tooltip
+  translation is dictionary-first: surface-form entries are served only
+  when they carry translations into the target locale, otherwise the
+  lemma's entries win (inflected forms usually have their own Wiktionary
+  row holding just a relational gloss).
 
 OFFLINE TRANSLATION
 -------------------
 The web backend translates without any online provider: NLLB-200-distilled-600M
 (Meta, CC-BY-NC-4.0 - noncommercial use only) runs under CTranslate2 on CPU.
 One decoding pass produces the phrase translation *and* the cross-attention
-matrix, from which per-word translations are derived; words below the
-confidence threshold carry no translation and can fall back to the
-Wiktionary dictionary layer. Phrase translation calls are cached in an
-sqlite LRU cache (~2 GiB budget, counter based).
+matrix. The attention alignment is only a per-word fallback: NLLB
+cross-attention is diffuse (most of its mass sits on the sentence-end
+sentinel), so the Wiktionary dictionary layer is the primary per-word
+tooltip source - reordered to put the sense that actually appears in the
+phrase translation first - and the model's aligned word is shown only when
+the dictionary has nothing for the token. Phrase translation calls are
+cached in an sqlite LRU cache (~2 GiB budget, counter based).
 
 Everything lives outside the repository in the data directory (`data/`
 by default, override with `SUBTITLE_LEARNING_DATA_DIR`):

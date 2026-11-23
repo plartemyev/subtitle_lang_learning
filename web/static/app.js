@@ -296,35 +296,63 @@ function tokenTip(word, entry, language, phrase) {
   return nodes;
 }
 
-/* Aligned NLLB translation + Wiktionary gloss/translations of the hovered
- * token, both into the active UI locale; absent while still fetching. */
+/* Wiktionary translations of the hovered token (primary line) + gloss, both
+ * into the active UI locale; the model's aligned word fills in only when the
+ * dictionary has nothing for the token - the NLLB cross-attention alignment
+ * is too unreliable to show beside real translations. */
 function appendTranslationLines(nodes, word, language, phrase) {
   const payload = phrase ? phrasePayloads.get(phraseKey(phrase)) : null;
   const index = phrase ? phrase.words.indexOf(word) : -1;
   const aligned = payload && payload.words && payload.words[index]
     ? payload.words[index].translation : null;
-  if (aligned) {
+  const dictionary = dictionaryPayloads.get(dictionaryKey(word, language));
+  const terms = [];
+  let gloss = null;
+  if (dictionary && dictionary.entries.length) {
+    for (const item of dictionary.entries) {
+      terms.push(...item.translations);
+      if (!gloss && item.glosses.length) gloss = item.glosses[0];
+    }
+  }
+  if (terms.length) {
+    const ordered = contextualTerms(terms, payload ? payload.translation : null);
+    nodes.push(document.createElement('br'),
+               document.createTextNode(i18n.tr('token_dictionary_line',
+                                               {translations: ordered.join(', ')})));
+  } else if (aligned) {
     nodes.push(document.createElement('br'),
                document.createTextNode(i18n.tr('token_translation_line',
                                                {translation: aligned})));
-  }
-  const dictionary = dictionaryPayloads.get(dictionaryKey(word, language));
-  if (!dictionary || !dictionary.entries.length) return;
-  const terms = [];
-  let gloss = null;
-  for (const item of dictionary.entries) {
-    terms.push(...item.translations);
-    if (!gloss && item.glosses.length) gloss = item.glosses[0];
-  }
-  if (terms.length) {
-    nodes.push(document.createElement('br'),
-               document.createTextNode(i18n.tr('token_dictionary_line',
-                                               {translations: terms.join(', ')})));
   }
   if (gloss) {
     nodes.push(document.createElement('br'),
                document.createTextNode(i18n.tr('token_gloss_line', {gloss: gloss})));
   }
+}
+
+/* Dictionary terms whose stem occurs in the phrase translation first: the
+ * dictionary lists every sense, the translation picked one (жертва among
+ * жертвах, хирург among хирургов). A stem match is a shared prefix long
+ * enough to cover the inflected ending; Wiktionary stress marks are
+ * stripped before comparing. */
+function contextualTerms(terms, translation) {
+  if (!translation) return terms;
+  const words = translation.toLowerCase().split(/[^\p{L}\p{N}]+/u);
+  const stem = (term) => term.toLowerCase().normalize('NFD').replace(/\u0301/g, '');
+  return terms.map((term, index) => ({term, index, score: contextScore(stem(term), words)}))
+    .sort((a, b) => b.score - a.score || a.index - b.index)
+    .map((item) => item.term);
+}
+
+function contextScore(stem, words) {
+  let best = 0;
+  for (const word of words) {
+    let shared = 0;
+    const bound = Math.min(stem.length, word.length);
+    while (shared < bound && stem[shared] === word[shared]) shared += 1;
+    if (shared >= Math.min(4, stem.length) && shared > best) best = shared;
+  }
+  return best;
 }
 
 function buildToken(word, category, entry, language, phrase) {
