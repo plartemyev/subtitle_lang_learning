@@ -1,0 +1,24 @@
+# Keep the build context small: the image copies only core/, locales/,
+# web/ and ui/i18n.py (see Dockerfile).
+.git
+.gitignore
+.idea
+.zcode
+.directory
+venv
+tmp
+samples
+原型
+tests
+tools
+ui/qt
+main.py
+cli.py
+Dockerfile
+docker-compose.yml
+.dockerignore
+screenshot.jpg
+LICENSE.txt
+README.md
+**/__pycache__
+*.pyc

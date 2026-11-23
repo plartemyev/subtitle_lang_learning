@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>subtitle lang learning</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+
+<header id="menubar">
+  <span id="app-title"></span>
+  <span class="menu-spacer"></span>
+  <label class="menu-label">
+    <span class="menu-title">Symbols &middot; Символы &middot; Symbole &middot; สัญลักษณ์</span>
+    <select id="symbol-system">
+      <option value="ui"></option>
+      <option value="subtitle"></option>
+    </select>
+  </label>
+  <label class="menu-label">
+    <span class="menu-title">Language &middot; Язык &middot; Sprache &middot; ภาษา</span>
+    <select id="ui-language">
+      <option value="de">Deutsch</option>
+      <option value="en">English</option>
+      <option value="ru">Русский</option>
+      <option value="th">ไทย</option>
+    </select>
+  </label>
+</header>
+
+<nav id="source-tabs">
+  <button id="tab-online" class="tab active" type="button"></button>
+  <button id="tab-file" class="tab" type="button"></button>
+</nav>
+
+<section id="source-panes">
+  <form id="pane-online" class="source-pane">
+    <input id="online-search-title" type="text" minlength="4" autocomplete="off">
+    <select id="subtitle-language"></select>
+    <button id="online-search-btn" type="submit"></button>
+  </form>
+  <div id="pane-file" class="source-pane hidden">
+    <span id="file-path-display"></span>
+    <button id="file-select-btn" type="button"></button>
+    <input id="file-input" type="file" accept=".srt" hidden>
+  </div>
+</section>
+
+<div id="status-line" hidden></div>
+
+<main id="main-layout">
+  <ul id="words-list"></ul>
+  <section id="details" hidden>
+    <div class="word-header">
+      <span id="selected-word-label"></span>
+      <span id="selected-pos-chip" class="chip" hidden></span>
+      <span class="header-spacer"></span>
+      <span id="selected-word-count-label"></span>
+    </div>
+    <div id="selected-word-subline" hidden></div>
+    <hr class="details-divider">
+    <div id="context-label" class="caps-label"></div>
+    <div id="phrase-view" tabindex="-1"></div>
+    <div id="legend">
+      <span id="legend-label" class="caps-label"></span>
+    </div>
+    <div id="legend-hint"></div>
+  </section>
+</main>
+
+<script type="module" src="/static/app.js"></script>
+</body>
+</html>

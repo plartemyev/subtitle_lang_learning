@@ -1,0 +1,251 @@
+/* Web port of the Qt desktop presentation (ui/qt/grammar.py, phrase_view.py,
+ * main_window.py styles): canonical Montessori symbol colors, accessible
+ * darker word-text variants, one underline style per family, PosChip pills,
+ * QToolTip-style lemma bubbles and the heat-colored word list. */
+
+:root {
+  --ink: #18181b;
+  --ink-2: #52525b;
+  --line-1: #e9e9ec;
+  --border: #d9d9de;
+  --focus: #93c5fd;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background: #ffffff;
+  color: var(--ink);
+  display: flex;
+  flex-direction: column;
+  font: 16px/1.4 system-ui, -apple-system, "Segoe UI", "Noto Sans", Ubuntu, Cantarell,
+        "Helvetica Neue", Arial, sans-serif;
+}
+select, button, input[type="text"] { font: inherit; }
+select, input[type="text"] {
+  padding: 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: #ffffff;
+}
+button {
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: #fafafa;
+  cursor: pointer;
+}
+button:hover { background: #f0f0f2; }
+button:disabled { opacity: 0.5; cursor: default; }
+
+/* ---------- menubar (Language / Symbols menus as selects) ---------- */
+#menubar {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--line-1);
+}
+#app-title { font-weight: 650; }
+.menu-spacer { flex: 1; }
+.menu-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+/* ---------- source tabs ---------- */
+#source-tabs { display: flex; padding: 10px 12px 0; }
+.tab {
+  border: 1px solid var(--border);
+  border-bottom: none;
+  border-radius: 6px 6px 0 0;
+  background: #fafafa;
+  padding: 5px 14px;
+  position: relative;
+  top: 1px;
+}
+.tab.active { background: #ffffff; font-weight: 600; }
+#source-panes {
+  margin: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 0 6px 6px 6px;
+  padding: 10px;
+}
+.source-pane { display: flex; gap: 8px; align-items: center; }
+.source-pane.hidden { display: none; }
+.source-pane input[type="text"] { flex: 1; }
+#file-path-display {
+  flex: 1;
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-height: 1em;
+}
+
+/* ---------- status line (structured core events, busy spinner) ---------- */
+#status-line {
+  margin: 8px 12px 0;
+  padding: 6px 10px;
+  border: 1px solid #f2c8c8;
+  background: #fdf2f2;
+  color: #8a1f1f;
+  border-radius: 4px;
+}
+#status-line.busy {
+  border-color: var(--line-1);
+  background: #fafafa;
+  color: var(--ink-2);
+}
+.spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid #c8c8cd;
+  border-top-color: var(--ink-2);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  vertical-align: -2px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ---------- main layout: word list | details ---------- */
+#main-layout {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 12px;
+  padding: 12px;
+  flex: 1;
+  min-height: 0;
+}
+#words-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow-y: auto;
+}
+#words-list li { padding: 2px 10px; cursor: pointer; }
+#words-list li.selected { box-shadow: inset 0 0 0 2px rgba(24, 24, 27, 0.55); }
+#details { padding: 0 4px; overflow-y: auto; min-width: 0; }
+.word-header { display: flex; align-items: center; gap: 10px; }
+#selected-word-label { font-size: 24px; font-weight: 700; }
+.header-spacer { flex: 1; }
+#selected-word-count-label { white-space: nowrap; }
+#selected-word-subline { margin-top: 2px; font-size: 14px; }
+.details-divider { border: 0; border-top: 1px solid var(--line-1); margin: 12px 0 10px; }
+.caps-label {
+  font-size: 13px;
+  font-weight: 650;
+  font-variant: small-caps;
+  letter-spacing: 0.06em;
+}
+
+/* ---------- interlinear phrase: symbol row above a wrapped word row ---------- */
+#phrase-view {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  row-gap: 6px;
+  column-gap: 0.28em;
+  outline: none;
+}
+.tok {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  border-radius: 3px;
+  outline: none;
+}
+.tok .sym { height: 20px; display: flex; align-items: flex-end; }
+.tok .sym svg { display: block; }
+.tok .lbl { font-size: 18px; line-height: 1.3; text-underline-offset: 4px; }
+.tok.focused { outline: 1.5px dashed var(--focus); outline-offset: 1px; }
+
+/* canonical Montessori symbol colors + accessible word-text variants */
+.cat-noun      { --sc: #18181b; --wc: #18181b; }
+.cat-propn     { --sc: #18181b; --wc: #18181b; }
+.cat-art       { --sc: #38bdf8; --wc: #0369a1; }
+.cat-adj       { --sc: #1e40af; --wc: #1e40af; }
+.cat-verb      { --sc: #dc2626; --wc: #b91c1c; }
+.cat-aux       { --sc: #dc2626; --wc: #b91c1c; }
+.cat-part      { --sc: #dc2626; --wc: #b91c1c; }
+.cat-adp       { --sc: #16a34a; --wc: #15803d; }
+.cat-pron      { --sc: #9333ea; --wc: #7e22ce; }
+.cat-adv       { --sc: #ea580c; --wc: #b45309; }
+.cat-conj      { --sc: #ec4899; --wc: #be185d; }
+.cat-intj      { --sc: #eab308; --wc: #a16207; }
+.cat-unmarked  { --sc: #8e8e95; --wc: #18181b; }
+
+.tok .sym { color: var(--sc); }
+.tok .lbl { color: var(--wc); }
+/* one underline style per symbol family, with the Qt pen widths */
+.tok.cat-noun .lbl, .tok.cat-propn .lbl { text-decoration: underline solid var(--wc) 2px; }
+.tok.cat-verb .lbl, .tok.cat-aux .lbl, .tok.cat-part .lbl { text-decoration: underline wavy var(--wc) 1.5px; }
+.tok.cat-adj .lbl, .tok.cat-art .lbl { text-decoration: underline dashed var(--wc) 1.5px; }
+.tok.cat-adv .lbl { text-decoration: underline dotted var(--wc) 1.5px; }
+.tok.cat-adp .lbl { text-decoration: underline double var(--wc) 1px; }
+.tok.cat-pron .lbl { text-decoration: underline dotted var(--wc) 2px; }
+.tok.cat-conj .lbl { text-decoration: underline dashed var(--wc) 2px; }
+.tok.cat-intj .lbl { text-decoration: underline wavy var(--wc) 2px; }
+/* selected token: translucent highlight of the word color + bold */
+.tok.sel .lbl {
+  font-weight: 650;
+  background: color-mix(in srgb, var(--wc) 13%, #ffffff);
+  border-radius: 3px;
+  padding: 0 2px;
+}
+
+/* ---------- QToolTip-style lemma bubble: one body-level layer ---------- */
+#tooltip {
+  position: fixed;
+  z-index: 50;
+  width: max-content;
+  max-width: 300px;
+  background: #ffffdc;
+  color: #000000;
+  border: 1px solid #7f7f7f;
+  border-radius: 2px;
+  padding: 4px 8px;
+  font-size: 13px;
+  line-height: 1.45;
+  text-align: left;
+  pointer-events: none;
+}
+
+/* ---------- PosChip: symbol-and-label pill ---------- */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px;
+  border: 1px solid;
+  border-radius: 5px;
+  font-size: 14px;
+  font-variant: small-caps;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  position: relative;
+  cursor: default;
+  outline: none;
+}
+.chip { color: var(--wc); border-color: color-mix(in srgb, var(--sc) 35%, transparent);
+        background: color-mix(in srgb, var(--sc) 10%, #ffffff); }
+.chip .sym { display: flex; align-items: center; }
+
+/* ---------- legend ---------- */
+#legend { margin-top: 14px; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+#legend-hint { margin-top: 6px; text-align: right; font-size: 14px; }
+
+/* ---------- narrow screens: stack the columns ---------- */
+@media (max-width: 720px) {
+  body { height: auto; }
+  #main-layout { grid-template-columns: 1fr; }
+  #words-list { max-height: 280px; }
+}

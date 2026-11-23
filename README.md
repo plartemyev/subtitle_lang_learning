@@ -47,6 +47,27 @@ follows the system locale and can be switched any time via the `Language · Яз
 menu (the choice is remembered). Pass `--ui-language {de,en,ru,th}` to `cli.py` to override
 the terminal interface language.
 
+WEB UI
+------
+The same analysis runs in the browser as a single-page app served by a FastAPI
+backend (`web/`); the desktop presentation of the grammar symbols is ported
+one-to-one. The whole stack ships as one container:
+
+    docker compose up --build
+    # then open http://127.0.0.1:8000
+
+Without Docker: install `requirements-web.txt` (FastAPI, uvicorn, chardet,
+srt, spaCy + the language models - no Qt) and run
+`python3 -m uvicorn web.app:app --host 0.0.0.0 --port 8000`.
+The page is plain HTML/JS/CSS from our own origin, no third-party scripts.
+The API consumed by the page (handy for scripting):
+
+* `GET /api/health`, `GET /api/languages`, `GET /api/i18n/<locale>`;
+* `POST /api/analyze/file` - multipart `file` + `language` form fields;
+* `POST /api/analyze/online` - JSON body `{"query": ..., "language": ...}`,
+  returns `{analysis, messages}` where `messages` carry the localizable
+  event codes.
+
 ARCHITECTURE
 ------------
 All application logic is UI-agnostic and lives in the `core/` package, which must never
@@ -54,6 +75,10 @@ import a UI framework (`PyQt6` or any other). Frontends live on their own:
 
 * `main.py` + `ui/qt/` - PyQt6 desktop frontend (the graphical application);
 * `cli.py` - terminal frontend, same analysis pipeline without any GUI;
+* `web/` + `web/static/` - FastAPI backend and the browser single-page UI;
+  analysis results are serialized to JSON (`web/serializers.py`), UI catalogs
+  are served as JSON by `/api/i18n`, user-facing outcomes stay structured
+  message codes localized in the browser;
 * `ui/i18n.py` - gettext-based localization adapter shared by every frontend;
 * `locales/` - the UI catalogs (ISO-639-1 `de`/`en`/`ru`/`th`), keyed by stable message
   codes; `en` is the reference locale and every locale ships a complete catalog;
@@ -120,7 +145,9 @@ TODO
 * [ ] Add ability to save already remembered words to exclude it from further searches.
 * [ ] Embed video player, to be able to load video files with subtitles and jump to
 the moment when a phrase is being spoken at the click on selected word.
-* [x] Localization (desktop Qt + CLI; catalog converters for web/Android pending).
+* [x] Localization (desktop Qt + CLI; the web frontend consumes the same catalogs
+via `/api/i18n`, catalog converters for Android pending).
+* [x] Web frontend served as a docker compose stack.
 * [ ] Package for Android.
 * [ ] Package for Windows.
 * [ ] Package for macOS.

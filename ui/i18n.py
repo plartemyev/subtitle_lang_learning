@@ -77,3 +77,41 @@ def format_user_message(message) -> str:
         return ntr(message.code, message.code + '_plural',
                    message.params['count'], **message.params)
     return tr(message.code, **message.params)
+
+
+def catalog(code: str) -> dict:
+    """Dump the compiled catalog of ``code`` as JSON-friendly data.
+
+    Plain msgids map to their translation; plural pairs arrive as
+    ``(msgid, form)`` tuple keys and collapse into ordered translation
+    arrays under the singular code, mirroring :func:`tr`/:func:`ntr`
+    lookups. Missing keys fall back to the reference locale
+    :data:`DEFAULT_LOCALE`. Raises ValueError for an unknown locale.
+    """
+    if code not in LOCALES:
+        raise ValueError(f'Unsupported UI locale "{code}", supported: {", ".join(LOCALES)}')
+    messages = _dump_catalog(gettext.translation(_DOMAIN, _LOCALE_DIR, [code]))
+    if code != DEFAULT_LOCALE:
+        reference = _dump_catalog(gettext.translation(_DOMAIN, _LOCALE_DIR, [DEFAULT_LOCALE]))
+        for key, value in reference.items():
+            messages.setdefault(key, value)
+    return messages
+
+
+def _dump_catalog(translations) -> dict:
+    messages = {}
+    for key, text in getattr(translations, '_catalog', {}).items():
+        if not text:
+            continue
+        if isinstance(key, tuple):
+            msgid, form = key
+            forms = messages.setdefault(msgid, [])
+            if isinstance(forms, list):
+                forms.append((form, text))
+        elif key:  # '' is the po header
+            messages[key] = text
+    for key, value in messages.items():
+        if isinstance(value, list):
+            value.sort()
+            messages[key] = [text for _form, text in value]
+    return messages
