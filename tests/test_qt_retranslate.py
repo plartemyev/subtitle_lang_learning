@@ -79,11 +79,15 @@ class RetranslateTest(unittest.TestCase):
     def test_initial_texts_are_translated(self):
         self.assertEqual(self.window.windowTitle(), 'Learn languages with subtitles')
         self.assertTrue(self.window._language_actions['en'].isChecked())
+        self.assertEqual(self.window._language_menu.title(), 'Language')
+        self.assertEqual(self.window._symbols_menu.title(), 'Symbols')
         self.assertEqual(self.window.ui.onlineSearchBtn.text(), 'Search')
 
     def test_menu_switch_retranslates_and_persists(self):
         self.window._language_actions['ru'].trigger()
         self.assertEqual(self.window.windowTitle(), 'Изучение языков с субтитрами')
+        self.assertEqual(self.window._language_menu.title(), 'Язык')
+        self.assertEqual(self.window._symbols_menu.title(), 'Символы')
         self.assertEqual(self.window.ui.sourceSelectionTabs.tabText(0), 'Загрузить из онлайн-источников')
         self.assertEqual(self.window.ui.sourceSelectionTabs.tabText(1), 'Загрузить из SRT-файла')
         self.assertEqual(self.window.ui.onlineSearchBtn.text(), 'Найти')

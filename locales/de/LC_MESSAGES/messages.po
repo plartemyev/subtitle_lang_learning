@@ -101,6 +101,13 @@ msgstr "Nur &einzelnes Wort"
 msgid "radio_whole_phrase"
 msgstr "Ganzer Satz"
 
+#. Menu-bar menu titles, localized per active UI locale.
+msgid "menu_language"
+msgstr "Sprache"
+
+msgid "menu_symbols"
+msgstr "Symbole"
+
 #. Symbols menu: whose Montessori tradition paints the grammar icons.
 msgid "symbol_system_ui"
 msgstr "Nach Sprache der Oberfläche"

@@ -99,6 +99,13 @@ msgstr "เฉพาะคำเดี่ยว"
 msgid "radio_whole_phrase"
 msgstr "ทั้งวลี"
 
+#. Menu-bar menu titles, localized per active UI locale.
+msgid "menu_language"
+msgstr "ภาษา"
+
+msgid "menu_symbols"
+msgstr "สัญลักษณ์"
+
 #. Symbols menu: whose Montessori tradition paints the grammar icons.
 msgid "symbol_system_ui"
 msgstr "ตามภาษาของส่วนติดต่อ"

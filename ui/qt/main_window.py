@@ -30,17 +30,12 @@ logger = logging.getLogger(__name__)
 main_window_ui_path = Path(__file__).parent.joinpath('main_window.ui').resolve()
 Ui_MainWindow, QtBaseClass = uic.loadUiType(main_window_ui_path)
 
-# Static multilingual title: readable no matter which locale is active, so the
-# override stays discoverable even when the wrong language was auto-selected.
-LANGUAGE_MENU_TITLE = 'Language · Язык · Sprache · ภาษา'
 NATIVE_LANGUAGE_NAMES = {
     'de': 'Deutsch',
     'en': 'English',
     'ru': 'Русский',
     'th': 'ไทย',
 }
-# Same rationale as the language menu title: locale-independent label.
-SYMBOLS_MENU_TITLE = 'Symbols · Символы · Symbole · สัญลักษณ์'
 
 SETTINGS_ORGANIZATION = 'subtitle_lang_learning'
 SETTINGS_APPLICATION = 'gui'
@@ -115,7 +110,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self.show()
 
     def _build_language_menu(self):
-        language_menu = self.menuBar().addMenu(LANGUAGE_MENU_TITLE)
+        self._language_menu = self.menuBar().addMenu(i18n.tr('menu_language'))
         actions_group = QActionGroup(self)
         self._language_actions = {}
         for locale_code in i18n.LOCALES:
@@ -125,7 +120,7 @@ class MainWindow(QtWidgets.QMainWindow):
             action.triggered.connect(
                 lambda checked, code=locale_code: self._switch_language(code))
             actions_group.addAction(action)
-            language_menu.addAction(action)
+            self._language_menu.addAction(action)
             self._language_actions[locale_code] = action
 
     def _switch_language(self, language_code: str):
@@ -137,7 +132,7 @@ class MainWindow(QtWidgets.QMainWindow):
         self._retranslate_ui()
 
     def _build_symbol_system_menu(self):
-        symbols_menu = self.menuBar().addMenu(SYMBOLS_MENU_TITLE)
+        self._symbols_menu = self.menuBar().addMenu(i18n.tr('menu_symbols'))
         actions_group = QActionGroup(self)
         self._symbol_system_actions = {}
         for mode, message_code in ((SYMBOL_SYSTEM_UI, 'symbol_system_ui'),
@@ -147,7 +142,7 @@ class MainWindow(QtWidgets.QMainWindow):
             action.triggered.connect(
                 lambda checked, mode_value=mode: self._set_symbol_system_mode(mode_value))
             actions_group.addAction(action)
-            symbols_menu.addAction(action)
+            self._symbols_menu.addAction(action)
             self._symbol_system_actions[mode] = action
 
     def _set_symbol_system_mode(self, mode: str):
@@ -182,6 +177,8 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def _retranslate_ui(self):
         self.setWindowTitle(i18n.tr('window_title'))
+        self._language_menu.setTitle(i18n.tr('menu_language'))
+        self._symbols_menu.setTitle(i18n.tr('menu_symbols'))
         self._set_tab_text(self.ui.sourceSelectionTabs, 'onlineSource', 'tab_online_source')
         self._set_tab_text(self.ui.sourceSelectionTabs, 'fileSourceSRT', 'tab_file_source')
         self._set_tab_text(self.ui.translationTabWidget, 'translateOnlineTab', 'tab_translate_online')

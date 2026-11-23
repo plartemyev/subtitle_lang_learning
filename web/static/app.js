@@ -122,6 +122,8 @@ function retranslate() {
   els.legendLabel.textContent = i18n.tr('legend_in_phrase');
   els.legendHint.textContent = i18n.tr('legend_hint');
   els.phraseTranslationLabel.textContent = i18n.tr('translation_label');
+  els.symbolsMenuTitle.textContent = i18n.tr('menu_symbols');
+  els.languageMenuTitle.textContent = i18n.tr('menu_language');
   for (const option of els.symbolSystem.options) {
     if (option.value === 'ui') option.textContent = i18n.tr('symbol_system_ui');
     if (option.value === 'subtitle') option.textContent = i18n.tr('symbol_system_subtitle');
@@ -655,6 +657,8 @@ function switchSourceTab(activeTab, activePane) {
 
 async function init() {
   els.appTitle = el('app-title');
+  els.symbolsMenuTitle = el('symbols-menu-title');
+  els.languageMenuTitle = el('language-menu-title');
   els.symbolSystem = el('symbol-system');
   els.uiLanguage = el('ui-language');
   els.tabOnline = el('tab-online');

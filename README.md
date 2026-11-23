@@ -37,13 +37,13 @@ classical Montessori shapes): every word carries its part-of-speech symbol, colo
 underline style. Hover (or arrow-key to) any word for a lemma tooltip; hover the part-of-speech
 chips for plain-language explanations. Articles are told apart from other determiners
 per language (`core.languages`).
-The `Symbols · Символы · Symbole · สัญลักษณ์` menu chooses whose Montessori tradition paints the icons -
+The `Symbols` menu chooses whose Montessori tradition paints the icons -
 the interface language's (the student's) or the subtitle language's. The systems differ only
 where the traditions genuinely differ (interjection: diamond vs exclamation keyhole,
 pronoun: tripartite vs plain pyramid); Thai (`th`) Montessori uses the imported international
 materials and renders like the reference set.
 Interface languages: German (`de`), English (`en`), Russian (`ru`), Thai (`th`). The desktop app
-follows the system locale and can be switched any time via the `Language · Язык · Sprache · ภาษา`
+follows the system locale and can be switched any time via the `Language`
 menu (the choice is remembered). Pass `--ui-language {de,en,ru,th}` to `cli.py` to override
 the terminal interface language.
 

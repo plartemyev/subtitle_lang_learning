@@ -107,6 +107,13 @@ msgstr "Only sin&gle word"
 msgid "radio_whole_phrase"
 msgstr "Whole phrase"
 
+#. Menu-bar menu titles, localized per active UI locale.
+msgid "menu_language"
+msgstr "Language"
+
+msgid "menu_symbols"
+msgstr "Symbols"
+
 #. Symbols menu: whose Montessori tradition paints the grammar icons.
 msgid "symbol_system_ui"
 msgstr "Follow interface language"

@@ -56,6 +56,8 @@ EXPECTED_CODES = frozenset({
     'radio_whole_phrase',
     'symbol_system_ui',
     'symbol_system_subtitle',
+    'menu_language',
+    'menu_symbols',
     'tab_translate_online',
     'tab_translate_local',
     'cli_word_line',
