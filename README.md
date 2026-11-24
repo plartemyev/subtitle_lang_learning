@@ -53,7 +53,7 @@ The same analysis runs in the browser as a single-page app served by a FastAPI
 backend (`web/`); the desktop presentation of the grammar symbols is ported
 one-to-one. The whole stack ships as one container:
 
-    docker compose up --build
+    docker compose up --build --detach
     # then open http://127.0.0.1:8000
 
 Without Docker: `poetry install --with web` and run

@@ -35,8 +35,8 @@ logger = logging.getLogger(__name__)
 
 LANGUAGE_NAMES = {'en': 'English', 'de': 'German', 'ru': 'Russian',
                   'th': 'Thai'}
-CONNECT_PROBE_TIMEOUT = 1.0
-SLOT_PROBE_TIMEOUT = 5.0
+CONNECT_PROBE_TIMEOUT = 0.5
+SLOT_PROBE_TIMEOUT = 0.5
 CONNECT_DEAD_SECONDS = 600
 SLOT_DEAD_SECONDS = 10
 
