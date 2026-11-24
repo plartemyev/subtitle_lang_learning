@@ -102,6 +102,25 @@ class LiteralDictionaryTests(unittest.TestCase):
         tokens = words('.', ',', '!')
         self.assertEqual(self.translate(tokens), '. , !')
 
+    def test_punctuation_sticks_to_the_word_it_touches(self):
+        tokens = [
+            {'text': 'meeting', 'lemma': 'meeting', 'pos': 'NOUN', 'start': 0, 'end': 7},
+            {'text': ',', 'lemma': ',', 'pos': 'PUNCT', 'start': 7, 'end': 8},
+            {'text': 'мужик', 'lemma': 'мужик', 'pos': 'NOUN', 'start': 9, 'end': 14},
+            {'text': '!', 'lemma': '!', 'pos': 'PUNCT', 'start': 14, 'end': 15},
+        ]
+        self.assertEqual(self.translate(tokens, target='en'), 'meeting, man!')
+
+    def test_opening_punctuation_sticks_to_the_next_word(self):
+        tokens = [
+            {'text': '"', 'lemma': '"', 'pos': 'PUNCT', 'start': 0, 'end': 1},
+            {'text': 'ups', 'lemma': 'up', 'pos': 'NOUN', 'start': 1, 'end': 4},
+            {'text': 'and', 'lemma': 'and', 'pos': 'CCONJ', 'start': 5, 'end': 8},
+            {'text': 'downs', 'lemma': 'down', 'pos': 'NOUN', 'start': 9, 'end': 14},
+            {'text': '.', 'lemma': '.', 'pos': 'PUNCT', 'start': 14, 'end': 15},
+        ]
+        self.assertEqual(self.translate(tokens), '"взлёты и паде́ния.')
+
     def test_pymorphy_candidates_for_cyrillic_case_forms(self):
         self.assertIn('вы', _lemma_candidates('вам'))
 

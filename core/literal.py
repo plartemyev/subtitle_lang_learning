@@ -13,9 +13,9 @@ just a transliteration of the source wins ("мужик" -> "man", not
 "muzhik"); a reverse dictionary index plugs single-word data gaps (the
 English edition carries no ru translations for the pronoun "I", the
 Russian edition's "я" entry translates back to "I"); algorithmic
-transliteration is the last resort. Punctuation passes through; the output
-is a space-joined source-order gloss (also for Thai, where the spaces mark
-gloss boundaries).
+transliteration is the last resort. Punctuation passes through, sticking to
+the neighbour it is written against; words are joined by single spaces in
+source order (also for Thai, where the spaces mark gloss boundaries).
 """
 import logging
 
@@ -131,6 +131,12 @@ def _lemma_candidates(word):
                               for parse in _morph_analyzer.parse(word)[:4]))
 
 
+def _touches(previous, word):
+    """True when ``word`` is written right against ``previous`` (no whitespace
+    between their character offsets)."""
+    return 'start' in word and 'end' in previous and word['start'] == previous['end']
+
+
 class LiteralDictionary:
     """Word-by-word glossing over the dictionary, the pedagogical view
     that pairs with a model translation in the UI."""
@@ -142,28 +148,34 @@ class LiteralDictionary:
         self.reverse = reverse
 
     def translate(self, text, source_code, target_locale, words):
-        """Space-joined source-order gloss of ``text``; ``words`` are the
-        analyzer-annotated tokens of the phrase (objects or dicts)."""
+        """Source-order gloss of ``text``; ``words`` are the analyzer-annotated
+        tokens of the phrase (objects or dicts). Words are joined by single
+        spaces; punctuation sticks to the neighbours it is written against."""
         if words and not isinstance(words[0], dict):
-            words = [{'text': w.text, 'lemma': w.lemma, 'pos': w.pos}
+            words = [{'text': w.text, 'lemma': w.lemma, 'pos': w.pos,
+                      'start': w.start, 'end': w.end}
                      for w in words]
         glosses = []
         index = 0
+        glued = False  # the previous piece is punctuation written against this one
         while index < len(words):
             word = words[index]
             if word['pos'] == 'PUNCT':
-                glosses.append(word['text'])
-                index += 1
-                continue
-            multi = self._multi_word(source_code, target_locale, words, index)
-            if multi is not None:
-                translation, size = multi
-                glosses.append(translation)
-                index += size
-                continue
-            glosses.append(self._single_word(source_code, target_locale, word))
-            index += 1
-        return ' '.join(glosses)
+                piece, size = word['text'], 1
+                binds_left = index > 0 and _touches(words[index - 1], word)
+                glues_right = (index + 1 < len(words)
+                               and _touches(word, words[index + 1]))
+            else:
+                multi = self._multi_word(source_code, target_locale, words, index)
+                piece, size = multi if multi is not None else (
+                    self._single_word(source_code, target_locale, word), 1)
+                binds_left = glues_right = False
+            if glosses and not glued and not binds_left:
+                glosses.append(' ')
+            glosses.append(piece)
+            glued = glues_right
+            index += size
+        return ''.join(glosses)
 
     def _multi_word(self, source_code, target_locale, words, index):
         """(translation, token count) of the longest dictionary headword
