@@ -219,6 +219,117 @@ def _strip_reasoning(text):
     return text.strip()
 
 
+# ---------------------------------------------------------------------------
+# literal word-by-word "translation" (dictionary glossing, no model)
+
+CYRILLIC_TO_LATIN = {
+    'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ё': 'yo',
+    'ж': 'zh', 'з': 'z', 'и': 'i', 'й': 'y', 'к': 'k', 'л': 'l', 'м': 'm',
+    'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r', 'с': 's', 'т': 't', 'у': 'u',
+    'ф': 'f', 'х': 'kh', 'ц': 'ts', 'ч': 'ch', 'ш': 'sh', 'щ': 'shch',
+    'ъ': '', 'ы': 'y', 'ь': '', 'э': 'e', 'ю': 'yu', 'я': 'ya'}
+LATIN_TO_CYRILLIC_DIGRAPHS = {
+    'ch': 'ч', 'sh': 'ш', 'sch': 'щ', 'shch': 'щ', 'zh': 'ж', 'kh': 'х',
+    'ts': 'ц', 'ck': 'к', 'th': 'т', 'ph': 'ф', 'oo': 'у', 'ee': 'и',
+    'ya': 'я', 'yu': 'ю', 'yo': 'ё', 'ja': 'я', 'ju': 'ю', 'w': 'в'}
+LATIN_TO_CYRILLIC = {
+    'a': 'а', 'b': 'б', 'c': 'к', 'd': 'д', 'e': 'е', 'f': 'ф', 'g': 'г',
+    'h': 'х', 'i': 'и', 'j': 'дж', 'k': 'к', 'l': 'л', 'm': 'м', 'n': 'н',
+    'o': 'о', 'p': 'п', 'q': 'к', 'r': 'р', 's': 'с', 't': 'т', 'u': 'у',
+    'v': 'в', 'x': 'кс', 'y': 'ы', 'z': 'з'}
+LATIN_TO_THAI_DIGRAPHS = {
+    'kh': 'ค', 'ph': 'พ', 'th': 'ท', 'ch': 'ช', 'sh': 'ช', 'ng': 'ง',
+    'ck': 'ก', 'oo': 'ู'}
+LATIN_TO_THAI = {
+    'k': 'ก', 'g': 'ก', 't': 'ต', 'd': 'ด', 'n': 'น', 'b': 'บ', 'p': 'ป',
+    'f': 'ฟ', 'v': 'ว', 's': 'ส', 'h': 'ห', 'j': 'จ', 'z': 'ซ', 'm': 'ม',
+    'y': 'ย', 'r': 'ร', 'l': 'ล', 'w': 'ว', 'c': 'ก', 'x': 'กซ',
+    'a': 'า', 'e': 'เอ', 'i': 'อิ', 'o': 'โอ', 'u': 'อุ', 'q': '',
+    'A': 'า', 'E': 'เอ', 'I': 'อิ', 'O': 'โอ', 'U': 'อุ'}
+
+
+def _is_cyrillic(text):
+    return any('а' <= ch.lower() <= 'я' or ch.lower() == 'ё'
+               for ch in text)
+
+
+def transliterate(word, target_locale):
+    """Pure-algorithm script conversion for dictionary misses."""
+    if target_locale in ('en', 'de'):
+        return ''.join(CYRILLIC_TO_LATIN.get(ch, ch) for ch in word)
+    latin = ''.join(CYRILLIC_TO_LATIN.get(ch, ch) for ch in word) \
+        if _is_cyrillic(word) else word
+    if target_locale == 'ru':
+        out, index = [], 0
+        lowered = latin.lower()
+        while index < len(latin):
+            for size in (4, 3, 2):
+                piece = lowered[index:index + size]
+                if piece in LATIN_TO_CYRILLIC_DIGRAPHS:
+                    out.append(LATIN_TO_CYRILLIC_DIGRAPHS[piece])
+                    index += size
+                    break
+            else:
+                out.append(LATIN_TO_CYRILLIC.get(lowered[index],
+                                                 latin[index]))
+                index += 1
+        return ''.join(out)
+    if target_locale == 'th':
+        out, index = [], 0
+        lowered = latin.lower()
+        while index < len(latin):
+            for size in (3, 2):
+                piece = lowered[index:index + size]
+                if piece in LATIN_TO_THAI_DIGRAPHS:
+                    out.append(LATIN_TO_THAI_DIGRAPHS[piece])
+                    index += size
+                    break
+            else:
+                out.append(LATIN_TO_THAI.get(lowered[index],
+                                             LATIN_TO_THAI.get(latin[index],
+                                                               latin[index])))
+                index += 1
+        return ''.join(out)
+    return word
+
+
+class LiteralDictionaryEngine:
+    """Word-for-word dictionary glossing, no model at all.
+
+    Per token: dictionary lookup (surface form first, then lemma, entries
+    carrying target-locale translations preferred, POS-disambiguated inside
+    the preference tiers - exactly what KaikkiDictionary.lookup does);
+    tokens without a translation fall back to algorithmic transliteration.
+    Punctuation passes through; output is space-joined source-order word
+    glosses (also for Thai, where spaces mark the gloss boundaries).
+    """
+
+    def __init__(self, key):
+        self.key = key
+        self.pairs = None
+
+    def translate(self, text, source_code, target_locale, words):
+        start = time.perf_counter()
+        dictionary = _shared_dictionary()
+        glosses = []
+        for word in words:
+            if word['pos'] == 'PUNCT':
+                glosses.append(word['text'])
+                continue
+            result = dictionary.lookup(source_code, target_locale,
+                                       word['text'], lemma=word['lemma'],
+                                       pos=word['pos'])
+            translation = None
+            for entry in result['entries']:
+                if entry['translations']:
+                    translation = entry['translations'][0]
+                    break
+            if translation is None:
+                translation = transliterate(word['text'], target_locale)
+            glosses.append(translation)
+        return ' '.join(glosses), (time.perf_counter() - start) * 1000
+
+
 class LlamaServerEngine:
     """GGUF model served by a local llama-server subprocess (one per run)."""
 
@@ -385,6 +496,7 @@ TOWER_PAIRS = [(source, target)
 def build_engines(env):
     models = MODELS_DIR
     engines = {
+        'literal': LiteralDictionaryEngine('literal'),
         'nllb600': CT2Engine('nllb600', 'nllb-600m-ct2', 'nllb'),
         'madlad3b': CT2Engine('madlad3b', 'madlad400-3b-mt-ct2-int8', 'madlad'),
         'qwen36-35b': RemoteOpenAIEngine(
@@ -586,7 +698,10 @@ def render_report():
     md = ['# Offline translation bake-off - Big Lebowski samples',
           '',
           'Phrases: last 30 cues per file through the real analyzer pipeline. '
-          'Latency is per-phrase wall time in milliseconds.',
+          'Latency is per-phrase wall time in milliseconds. The literal '
+          'column is word-by-word dictionary glossing (surface form first, '
+          'then lemma, POS-disambiguated among translations, transliteration '
+          'fallback) - no model, kept as a pedagogical view.',
           '']
     if skipped:
         md += ['Engines skipped by the 3 s/phrase budget:']

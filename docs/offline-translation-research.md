@@ -132,6 +132,17 @@ terms respected).
    variant works mechanically (terms respected at +1 s latency) but was
    dropped from the plan. The annotations' productive role remains the
    per-word tooltip/dictionary layer.
+6. **Literal dictionary column** (product experiment): a pure-algorithm
+   word-by-word glossing engine - surface form first, then lemma,
+   POS-disambiguated among target-locale translations, transliteration
+   fallback - runs in ~1 ms/phrase and needs no model. It is kept in the
+   benchmark report as the pedagogical "how the idiom is built" view
+   (e.g. rus-en: "Твою мать!" -> "your mother !"), not as a translation
+   quality contender. Dictionary forms carry Wiktionary stress marks and
+   stay uninflected, which is a feature for a student, noise for fluency.
+7. **Fallback decision**: HY-MT1.5-1.8B (~3.9 s median, audited clean,
+   Thai-capable, license workable in the end-user-download flow) is the
+   accepted offline fallback for the production provider.
 
 ## Reproducing
 
