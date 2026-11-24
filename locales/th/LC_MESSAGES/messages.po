@@ -230,9 +230,9 @@ msgstr "ยังใช้เป็น {items}"
 msgid "legend_in_phrase"
 msgstr "ในวลีนี้"
 
-#. Legend hint for the per-word tooltips.
+#. Hint under the context phrase: per-word tooltips and click-to-copy.
 msgid "legend_hint"
-msgstr "ชี้ที่คำใดก็ได้เพื่อดูรากศัพท์และไวยากรณ์"
+msgstr "ชี้ที่คำใดก็ได้เพื่อดูรากศัพท์และไวยากรณ์ · คลิกที่วลีเพื่อคัดลอก"
 
 #. Universal Dependencies morphology values shown in word tooltips.
 msgid "morph_person_1"

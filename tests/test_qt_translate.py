@@ -98,6 +98,9 @@ class MainWindowTestBase(unittest.TestCase):
         self.addCleanup(unittest.mock.patch.stopall)
         self.window = main_window.MainWindow(language_code='en')
         self.addCleanup(self.window.close)
+        # a debounce left armed would fire during a later test's event loop
+        # and run a real translation request in the background
+        self.addCleanup(self.window._translate_timer.stop)
 
     def _select_words(self, words):
         model = QtGui.QStandardItemModel(self.window.ui.wordsListView)
@@ -150,6 +153,47 @@ class DefaultModeTest(MainWindowTestBase):
         self.assertEqual(engine.calls, ['In the garden we met.'])
         self.assertEqual(literal.calls, ['In the garden we met.'])
         self.assertEqual(self.window.ui.localLiteralText.text(), 'word by word')
+
+    def test_word_meta_line_leads_with_the_count(self):
+        # a marked word: the count, then its other parts of speech
+        self.window.services = FakeServices(dictionary=None)  # no real dictionary lookups
+        entry = WordEntry(word='garden', count=2, pos='NOUN', pos_counts={'NOUN': 1, 'VERB': 1},
+                          occurrences={'NOUN': [AnnotatedPhrase(
+                              text='In the garden.', start_sec=0.0, end_sec=1.0)]})
+        self.window.controller = types.SimpleNamespace(
+            current_result=AnalysisResult(language_code='eng', words={'garden': entry}))
+        self.window.selected_word = 'garden'
+        self.window._render_word_meta()
+        self.assertEqual(self.window.ui.selectedWordSubline.text(), '2\u00d7 \u00b7 also verb (1\u00d7)')
+
+    def test_long_legend_wraps_instead_of_widening_the_window(self):
+        self.window.services = FakeServices(dictionary=None)  # no real dictionary lookups
+        tokens = [('Hey', 'INTJ'), ('but', 'CCONJ'), ('we', 'PRON'), ("'ll", 'AUX'),
+                  ('gently', 'ADV'), ('look', 'VERB'), ('at', 'ADP'), ('the', 'DET'),
+                  ('odd', 'ADJ'), ('Dude', 'PROPN'), ("'s", 'PART'), ('car', 'NOUN')]
+        self.window.selected_word = 'look'
+        minimum_widths = []
+        for words in (tokens[:2], tokens):
+            phrase = AnnotatedPhrase(text='x', start_sec=0.0, end_sec=1.0, words=[
+                AnnotatedWord(text=text, lemma=text, pos=pos, start=0, end=0)
+                for text, pos in words])
+            entry = WordEntry(word='look', count=2, pos='VERB', occurrences={'VERB': [phrase]})
+            self.window.controller = types.SimpleNamespace(
+                current_result=AnalysisResult(language_code='eng', words={'look': entry}))
+            self.window._render_word_meta()
+            minimum_widths.append(self.window.minimumSizeHint().width())
+        self.assertEqual(self.window.ui.legendChips.layout().count(), len(tokens))
+        self.assertEqual(minimum_widths[1], minimum_widths[0])
+
+    def test_click_on_phrase_copies_its_plain_text(self):
+        self.window.services = FakeServices(engine=None, literal=None)
+        self._install_phrase('garden', 'In the garden\nwe  met. ')
+        self._select_words(['garden'])
+        clipboard = unittest.mock.Mock()
+        with unittest.mock.patch.object(QtWidgets.QApplication, 'clipboard',
+                                        return_value=clipboard):
+            self.window.ui.phraseView.copy_requested.emit()
+        clipboard.setText.assert_called_once_with('In the garden we met.')
 
     def test_unavailable_engine_shows_localized_message(self):
         self.window.services = FakeServices(engine=None, literal=None)

@@ -13,8 +13,8 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from PyQt6 import QtCore, QtWidgets
-from PyQt6.QtCore import QPoint, Qt
-from PyQt6.QtGui import QHelpEvent, QKeyEvent
+from PyQt6.QtCore import QPoint, QPointF, Qt
+from PyQt6.QtGui import QHelpEvent, QKeyEvent, QMouseEvent
 
 from core.languages import LANGUAGES
 from ui.qt import grammar
@@ -201,6 +201,43 @@ class PhraseViewWidgetTest(unittest.TestCase):
             view.keyPressEvent(right)
             self.assertEqual(view._focus_index, 1)
         self.assertEqual(show_text.call_count, 2)
+
+    def test_attached_tokens_are_typeset_tight_and_wrap_together(self):
+        view = PhraseView()
+        font = view.font()
+        font.setPointSizeF(20)  # wide tokens: the layout never wraps below 200 px
+        view.setFont(font)
+        view.set_tokens([TokenView(text='wanderers', category=Category.NOUN),
+                         TokenView(text="'ll", category=Category.AUXILIARY, attached=True),
+                         TokenView(text='understand', category=Category.VERB),
+                         TokenView(text='.', category=Category.UNMARKED, attached=True)])
+        advance = view._font_metrics().horizontalAdvance
+        padding = 2 * PhraseView.TOKEN_PADDING
+        verb_x = advance('wanderers') + advance("'ll") + padding + advance(' ')
+        # wide enough for "wanderers'll understand", not for the cluster "understand."
+        view.resize(int(verb_x + advance('understand') + padding), 140)
+        view.show()
+        first, clitic, verb, period = view._positions
+        self.assertEqual(round(clitic[0]), round(first[0] + advance('wanderers')))
+        # the punctuation follows its word onto the next line
+        self.assertEqual((verb[1], period[1]), (1, 1))
+        self.assertEqual(round(period[0]), round(verb[0] + advance('understand')))
+        # each attached token keeps its own hit area
+        self.assertEqual(view._token_at(QPoint(int(clitic[0]) + PhraseView.TOKEN_PADDING + 1, 40)), 1)
+        self.assertEqual(view._token_at(QPoint(int(first[0]) + PhraseView.TOKEN_PADDING + 1, 40)), 0)
+
+    def test_click_asks_the_caller_to_copy_the_phrase(self):
+        view = PhraseView()
+        view.set_tokens([TokenView(text='a', category=Category.NOUN)])
+        view.resize(300, 80)
+        view.show()
+        requested = []
+        view.copy_requested.connect(lambda: requested.append(True))
+        release = QMouseEvent(QtCore.QEvent.Type.MouseButtonRelease, QPointF(10, 40), QPointF(10, 40),
+                              Qt.MouseButton.LeftButton, Qt.MouseButton.NoButton,
+                              Qt.KeyboardModifier.NoModifier)
+        view.mouseReleaseEvent(release)
+        self.assertEqual(requested, [True])
 
 
 if __name__ == '__main__':

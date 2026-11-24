@@ -83,6 +83,10 @@ class RetranslateTest(unittest.TestCase):
         self.assertEqual(self.window._symbols_menu.title(), 'Symbols')
         self.assertEqual(self.window.ui.onlineSearchBtn.text(), 'Search')
 
+    def test_window_icon_is_set(self):
+        # the desktop otherwise shows the interpreter's generic icon
+        self.assertFalse(self.window.windowIcon().pixmap(16, 16).isNull())
+
     def test_menu_switch_retranslates_and_persists(self):
         self.window._language_actions['ru'].trigger()
         self.assertEqual(self.window.windowTitle(), 'Изучение языков с субтитрами')

@@ -102,9 +102,8 @@ msgstr "Search"
 msgid "checkbox_translate"
 msgstr "Translate"
 
-#. '&' precedes the Qt keyboard mnemonic.
 msgid "radio_single_word"
-msgstr "Only sin&gle word"
+msgstr "Only single word"
 
 msgid "radio_whole_phrase"
 msgstr "Whole phrase"
@@ -238,9 +237,9 @@ msgstr "also {items}"
 msgid "legend_in_phrase"
 msgstr "In this phrase"
 
-#. Legend hint for the per-word tooltips.
+#. Hint under the context phrase: per-word tooltips and click-to-copy.
 msgid "legend_hint"
-msgstr "hover any word for its lemma and grammar"
+msgstr "hover any word for its lemma and grammar · click the phrase to copy it"
 
 #. Universal Dependencies morphology values shown in word tooltips.
 msgid "morph_person_1"

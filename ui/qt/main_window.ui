@@ -129,13 +129,6 @@
               </property>
              </spacer>
             </item>
-            <item>
-             <widget class="QLabel" name="selectedWordCountLabel">
-              <property name="text">
-               <string/>
-              </property>
-             </widget>
-            </item>
            </layout>
           </item>
           <item>
@@ -182,25 +175,24 @@
            </widget>
           </item>
           <item>
-           <layout class="QHBoxLayout" name="legendLayout">
-            <item>
-             <widget class="QLabel" name="legendLabel">
-              <property name="text">
-               <string/>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </item>
-          <item>
            <widget class="QLabel" name="legendHint">
-            <property name="alignment">
-             <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+            <property name="wordWrap">
+             <bool>true</bool>
             </property>
             <property name="text">
              <string/>
             </property>
            </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="legendLabel">
+            <property name="text">
+             <string/>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QWidget" name="legendChips"/>
           </item>
          </layout>
         </item>
@@ -389,7 +381,6 @@
     </rect>
    </property>
   </widget>
-  <widget class="QStatusBar" name="statusbar"/>
  </widget>
  <customwidgets>
   <customwidget>

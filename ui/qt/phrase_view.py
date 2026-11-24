@@ -26,10 +26,15 @@ class TokenView:
     category: Category
     tooltip: str = ''
     selected: bool = False
+    # typeset tight against the previous token (contractions, punctuation)
+    attached: bool = False
 
 
 class PhraseView(QtWidgets.QWidget):
     """Interlinear gloss: grammar symbol row above a wrapped word row."""
+
+    # a click on the phrase: the caller puts its plain text on the clipboard
+    copy_requested = QtCore.pyqtSignal()
 
     SYMBOL_ZONE = max(grammar.SYMBOL_SIZES.values()) + 5  # px reserved above words
     TOKEN_PADDING = 3  # extra width around a selected word
@@ -65,16 +70,25 @@ class PhraseView(QtWidgets.QWidget):
                              + self.UNDERLINE_CLEARANCE)
         self._positions.clear()
         available = max(self.width(), 200)
+        widths = [metrics.horizontalAdvance(token.text) + 2 * self.TOKEN_PADDING
+                  for token in self._tokens]
+        # a token and its attached followers wrap as one unit
+        clusters = list(widths)
+        for index in range(len(widths) - 2, -1, -1):
+            if self._tokens[index + 1].attached:
+                clusters[index] += clusters[index + 1]
         x = 0.0
         line = 0
         space_width = metrics.horizontalAdvance(' ')
         for index, token in enumerate(self._tokens):
-            width = metrics.horizontalAdvance(token.text) + 2 * self.TOKEN_PADDING
-            if x > 0 and x + width > available:
+            if x > 0 and not token.attached and x + clusters[index] > available:
                 line += 1
                 x = 0.0
             self._positions.append((x, line))
-            x += width + space_width
+            if index + 1 < len(widths) and self._tokens[index + 1].attached:
+                x += widths[index] - 2 * self.TOKEN_PADDING
+            else:
+                x += widths[index] + space_width
         self._line_count = line + 1
         self.setMinimumHeight(self._line_count * self._line_height + 8)
 
@@ -87,10 +101,12 @@ class PhraseView(QtWidgets.QWidget):
         return QFontMetrics(self.font())
 
     def _token_rect(self, index: int) -> QRectF:
+        """Text box of a token; the padding is spacing only, so attached
+        tokens share it without overlapping hit areas."""
         metrics = self._font_metrics()
         x, line = self._positions[index]
-        width = metrics.horizontalAdvance(self._tokens[index].text) + 2 * self.TOKEN_PADDING
-        return QRectF(x, line * self._line_height, width, self._line_height)
+        width = metrics.horizontalAdvance(self._tokens[index].text)
+        return QRectF(x + self.TOKEN_PADDING, line * self._line_height, width, self._line_height)
 
     # ---------- painting ----------
 
@@ -113,8 +129,11 @@ class PhraseView(QtWidgets.QWidget):
                 self._paint_focus_ring(painter, QRectF(x - 1, line_top + 1, width + 2,
                                                        self._line_height - 2), dark)
             if token.category is not Category.UNMARKED:
-                grammar.draw_symbol(painter, x + width / 2, line_top + 2, token.category,
-                                    dark=dark)
+                # every symbol rests on one baseline above the words (as in the web view)
+                grammar.draw_symbol(
+                    painter, x + width / 2,
+                    line_top + self.SYMBOL_ZONE - 3 - grammar.SYMBOL_SIZES[token.category],
+                    token.category, dark=dark)
             color = grammar.word_color(token.category, dark) \
                 if token.category is not Category.UNMARKED else ink
             underline_style, underline_width = grammar.UNDERLINES[token.category]
@@ -189,6 +208,12 @@ class PhraseView(QtWidgets.QWidget):
 
     # ---------- interaction ----------
 
+    def mouseReleaseEvent(self, event):
+        if event.button() == QtCore.Qt.MouseButton.LeftButton \
+                and self.rect().contains(event.position().toPoint()):
+            self.copy_requested.emit()
+        super().mouseReleaseEvent(event)
+
     def event(self, event: PyQt6.QtCore.QEvent) -> bool:
         if event.type() == QtCore.QEvent.Type.ToolTip:
             token = self._token_at(event.pos())
@@ -235,6 +260,9 @@ class PosChip(QtWidgets.QWidget):
         font.setWeight(QFont.Weight.DemiBold)
         font.setLetterSpacing(QFont.SpacingType.PercentageSpacing, 104)
         self.setFont(font)
+        # a pill keeps its own size in any layout (header row or legend flow)
+        self.setSizePolicy(QtWidgets.QSizePolicy.Policy.Fixed,
+                           QtWidgets.QSizePolicy.Policy.Fixed)
         self._category = Category.UNMARKED
         self._label = ''
 
@@ -252,6 +280,10 @@ class PosChip(QtWidgets.QWidget):
         pad_x, gap, pad_y = 9, 5, 3
         return QtCore.QSize(pad_x + symbol + gap + metrics.horizontalAdvance(self._label) + pad_x,
                             max(symbol, metrics.height()) + 2 * pad_y)
+
+    def sizeHint(self) -> QtCore.QSize:
+        # without it the layout gives every chip an equal share of the row
+        return self._chip_size()
 
     def paintEvent(self, event):
         if self._category is Category.UNMARKED:

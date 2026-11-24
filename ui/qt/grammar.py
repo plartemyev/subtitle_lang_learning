@@ -119,6 +119,15 @@ def is_dark_palette(palette) -> bool:
     return window.lightness() < 128
 
 
+def secondary_color(palette) -> QColor:
+    """Muted text color for hints: the window text tinted 30% toward the window
+    (still 4.5:1 on the default light palette for small text)."""
+    ink = palette.color(palette.ColorRole.WindowText).getRgb()[:3]
+    backdrop = palette.color(palette.ColorRole.Window).getRgb()[:3]
+    return QColor(*[round(0.70 * foreground + 0.30 * background)
+                    for foreground, background in zip(ink, backdrop, strict=True)])
+
+
 def word_color(category: Category, dark: bool) -> QColor:
     """Theme-resolved text color of a category."""
     return WORD_COLORS_DARK[category] if dark else WORD_COLORS[category]

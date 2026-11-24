@@ -15,14 +15,15 @@ from typing import Callable
 import PyQt6.QtCore
 from PyQt6 import QtCore, QtWidgets, uic
 from PyQt6.QtCore import QDir, QUrl
-from PyQt6.QtGui import (QAction, QActionGroup, QBrush, QColor, QFont, QStandardItem,
-                         QStandardItemModel)
+from PyQt6.QtGui import (QAction, QActionGroup, QBrush, QColor, QFont, QIcon, QPalette,
+                         QStandardItem, QStandardItemModel)
 
 from core import paths, translate
 from core.controller import AppController, UserMessage
 from core.languages import LANGUAGES
 from ui import i18n
 from ui.qt import grammar
+from ui.qt.flow_layout import FlowLayout
 from ui.qt.local_translation import TranslationRequest, TranslationServices
 from ui.qt.phrase_view import PosChip, TokenView
 
@@ -30,6 +31,9 @@ logger = logging.getLogger(__name__)
 
 main_window_ui_path = Path(__file__).parent.joinpath('main_window.ui').resolve()
 Ui_MainWindow, QtBaseClass = uic.loadUiType(main_window_ui_path)
+# Breeze "application-x-srt" icon (LGPL-3.0-or-later, credited in the README):
+# without a window icon the desktop shows the interpreter's generic one.
+window_icon_path = Path(__file__).parent.joinpath('icon.svg').resolve()
 
 NATIVE_LANGUAGE_NAMES = {
     'de': 'Deutsch',
@@ -52,9 +56,9 @@ SYMBOL_SYSTEM_SUBTITLE = 'subtitle'
 TRANSLATE_DEBOUNCE_MS = 300
 
 # Word details stay hidden until a word from the list is selected.
-DETAIL_WIDGET_NAMES = ('selectedWordLabel', 'selectedPosChip', 'selectedWordCountLabel',
-                       'selectedWordSubline', 'detailsDivider', 'contextLabel',
-                       'phraseView', 'legendLabel', 'legendHint')
+DETAIL_WIDGET_NAMES = ('selectedWordLabel', 'selectedPosChip', 'selectedWordSubline',
+                       'detailsDivider', 'contextLabel', 'phraseView', 'legendHint',
+                       'legendLabel', 'legendChips')
 # The local translation block stays hidden until the first phrase request.
 LOCAL_WIDGET_NAMES = ('localTranslationLabel', 'localTranslationText',
                       'localLiteralLabel', 'localLiteralText')
@@ -80,6 +84,7 @@ class MainWindow(QtWidgets.QMainWindow):
         super(MainWindow, self).__init__()
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
+        self.setWindowIcon(QIcon(str(window_icon_path)))
         self.controller = controller if controller is not None else AppController(warning_callback=self.showWarning)
         self.selected_word = ''
         self.services = TranslationServices(paths.data_dir())
@@ -107,6 +112,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self._translate_timer = QtCore.QTimer(self)
         self._translate_timer.setSingleShot(True)
         self._translate_timer.timeout.connect(self._translate_current_selection)
+        self.ui.legendChips.setLayout(FlowLayout())
+        self.ui.phraseView.copy_requested.connect(self._copy_context_phrase)
         self._style_word_details()
         for widget_name in DETAIL_WIDGET_NAMES + LOCAL_WIDGET_NAMES:
             getattr(self.ui, widget_name).setVisible(False)
@@ -269,24 +276,24 @@ class MainWindow(QtWidgets.QMainWindow):
         for widget_name in DETAIL_WIDGET_NAMES:
             getattr(self.ui, widget_name).setVisible(True)
         self.ui.selectedWordLabel.setText(entry.word)
-        self.ui.selectedWordCountLabel.setText(f'{entry.count}\u00d7')
-        subline = ''
+        subline = f'{entry.count}\u00d7'
         if category is grammar.Category.UNMARKED:
             self.ui.selectedPosChip.setVisible(False)
             if entry.pos:
-                subline = i18n.tr('pos_suffix', pos=entry.pos.lower()).lstrip(', ')
+                subline += ' \u00b7 ' + i18n.tr('pos_suffix', pos=entry.pos.lower()).lstrip(', ')
         else:
             suffix = grammar.message_suffix(category)
             self.ui.selectedPosChip.set_data(category, i18n.tr('pos_name_' + suffix))
             self.ui.selectedPosChip.setToolTip(
                 i18n.tr('pos_tip_' + grammar.tip_message_suffix(category)))
-            subline = self._entry_subline(entry, language)
+            details = self._entry_subline(entry, language)
+            if details:
+                subline += ' \u00b7 ' + details
         self.ui.selectedWordSubline.setText(subline)
-        self.ui.selectedWordSubline.setVisible(bool(subline))
         self._render_phrase(entry, language)
 
     def _style_word_details(self):
-        """Fonts for the details pane; the .ui file stays layout-only."""
+        """Fonts and secondary colors for the details pane; the .ui file stays layout-only."""
         word_font = self.ui.selectedWordLabel.font()
         word_font.setPointSizeF(word_font.pointSizeF() + 6)
         word_font.setBold(True)
@@ -309,9 +316,20 @@ class MainWindow(QtWidgets.QMainWindow):
         translation_font.setPointSizeF(translation_font.pointSizeF() + 1)
         self.ui.localTranslationText.setFont(translation_font)
 
+        # the rough word-by-word gloss is secondary next to the real translation
+        literal_font = self.ui.localLiteralText.font()
+        literal_font.setPointSizeF(max(literal_font.pointSizeF() - 1, 7))
+        literal_font.setItalic(True)
+        self.ui.localLiteralText.setFont(literal_font)
+
         hint_font = self.ui.legendHint.font()
         hint_font.setPointSizeF(max(hint_font.pointSizeF() - 1, 7))
         self.ui.legendHint.setFont(hint_font)
+        hint_palette = self.ui.legendHint.palette()
+        hint_palette.setColor(QPalette.ColorRole.WindowText,
+                              grammar.secondary_color(self.palette()))
+        for label in (self.ui.legendHint, self.ui.localLiteralText):
+            label.setPalette(hint_palette)
 
     def _entry_subline(self, entry, language) -> str:
         """'also a noun (2×)' line plus the possessive note, if any."""
@@ -338,15 +356,24 @@ class MainWindow(QtWidgets.QMainWindow):
         tokens = []
         categories = []  # first-occurrence order, unmarked tokens skipped
         if phrase is not None:
-            for word in phrase.words:
+            for index, word in enumerate(phrase.words):
                 category = grammar.category_for(word.pos, word.text.lower(), language)
+                # written tight against the previous token in the source ('ll, commas)
+                attached = index > 0 and word.start == phrase.words[index - 1].end
                 tokens.append(TokenView(text=word.text, category=category,
                                         tooltip=self._token_tooltip(word, entry, language),
-                                        selected=self._is_selected_token(word, entry)))
+                                        selected=self._is_selected_token(word, entry),
+                                        attached=attached))
                 if category is not grammar.Category.UNMARKED and category not in categories:
                     categories.append(category)
         self.ui.phraseView.set_tokens(tokens)
         self._rebuild_legend(categories)
+
+    def _copy_context_phrase(self):
+        """Click on the context phrase: its plain text goes to the clipboard."""
+        text = ' '.join(self._selected_phrase().split())
+        if text:
+            QtWidgets.QApplication.clipboard().setText(text)
 
     def _token_tooltip(self, word, entry, language) -> str:
         suffix = grammar.message_suffix(
@@ -364,8 +391,6 @@ class MainWindow(QtWidgets.QMainWindow):
         if morphology:
             tooltip += f'<br>{html.escape(morphology)}'
         tooltip += self._dictionary_tooltip_lines(word)
-        if self._is_selected_token(word, entry):
-            tooltip += f'<br>{entry.count}\u00d7'
         return tooltip
 
     def _dictionary_tooltip_lines(self, word) -> str:
@@ -394,12 +419,9 @@ class MainWindow(QtWidgets.QMainWindow):
         return word.lemma == entry.word or word.text.lower() == entry.word.lower()
 
     def _rebuild_legend(self, categories):
-        layout = self.ui.legendLayout
-        while layout.count() > 1:  # index 0 is the legendLabel
-            item = layout.takeAt(layout.count() - 1)
-            widget = item.widget()
-            if widget is not None:
-                widget.deleteLater()
+        layout = self.ui.legendChips.layout()
+        while layout.count():
+            layout.takeAt(0).widget().deleteLater()
         for category in categories:
             suffix = grammar.message_suffix(category)
             chip = PosChip()
