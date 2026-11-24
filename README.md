@@ -116,6 +116,12 @@ Attribution: dictionary data is extracted from Wiktionary via
 wiktextract/kaikki.org (CC BY-SA 4.0); NLLB-200 weights are CC-BY-NC-4.0
 (research model, noncommercial use only).
 
+Engine replacement research (Nov 2026): fifteen offline engines were
+benchmarked against real subtitle phrases with a 3 s/phrase latency budget
+and per-stage atop contamination audits - procedure, tools and results in
+`docs/offline-translation-research.md`, harness in
+`tools/benchmark_translation.py`.
+
 ARCHITECTURE
 ------------
 All application logic is UI-agnostic and lives in the `core/` package, which must never
