@@ -11,7 +11,7 @@ ignores).
 
 Fallback-switch policy (checked before every remote call):
 1. a cached dead state skips the remote entirely;
-2. otherwise a connect probe runs with a 1 s timeout;
+2. otherwise a connect probe runs with a 0.5 s timeout;
 3. then a slot-availability probe (llama.cpp /health answers 503 when all
    slots are busy; servers without /health are treated as available);
 4. no slot caches the remote dead for SLOT_DEAD_SECONDS (slots free up
@@ -94,7 +94,7 @@ class OllamaProvider:
         return remaining if remaining > 0 else 0.0
 
     def _probe(self):
-        """Connect probe (1 s) then slot probe; raises with the dead cache
+        """Connect probe (0.5 s) then slot probe; raises with the dead cache
         populated when either fails."""
         parts = urllib.parse.urlsplit(self.base_url)
         port = parts.port or (443 if parts.scheme == 'https' else 80)
@@ -114,6 +114,7 @@ class OllamaProvider:
                 status = response.status
         except urllib.error.HTTPError as error:
             status = error.code
+            error.close()  # an HTTPError is an open response body
         except (urllib.error.URLError, OSError) as error:
             self._mark_dead(SLOT_DEAD_SECONDS, f'health probe failed: {error}')
             raise RuntimeError(f'{self.label}: health probe failed ({error}); '
@@ -148,6 +149,7 @@ class OllamaProvider:
             with urllib.request.urlopen(request, timeout=self.timeout) as response:
                 result = json.loads(response.read().decode('utf-8'))
         except urllib.error.HTTPError as error:
+            error.close()  # an HTTPError is an open response body
             if error.code == 503:
                 self._mark_dead(SLOT_DEAD_SECONDS, 'no free slot')
                 raise RuntimeError(f'{self.label}: no free slot; remote '

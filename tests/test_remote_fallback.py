@@ -1,4 +1,5 @@
 """Remote fallback-switch policy: cached dead state, probes, dead TTLs."""
+import io
 import sys
 import time
 import unittest
@@ -100,6 +101,25 @@ class OllamaFallbackSwitchTests(unittest.TestCase):
             result = self.provider.translate('hi', 'eng', 'ru', [])
         self.assertEqual(result.target_text, 'перевод')
         self.assertEqual(opener.call_count, 2)  # health + chat only
+
+    def test_failed_calls_release_the_error_response(self):
+        # an HTTPError doubles as an open response body: left to the garbage
+        # collector it warns ("Implicitly cleaning up <HTTPError ...>")
+        for code, message in ((503, 'busy'), (404, 'missing'), (500, 'down')):
+            for on_health in (True, False):
+                with self.subTest(code=code, on_health=on_health):
+                    self.provider = make_provider()  # a 503 caches the remote dead
+                    body = io.BytesIO(b'error details')
+                    failure = remote.urllib.error.HTTPError('url', code, message, {}, body)
+                    replies = [failure, FakeResponse()] if on_health else [FakeResponse(), failure]
+                    with mock.patch.object(remote.socket, 'create_connection'), \
+                         mock.patch.object(remote.urllib.request, 'urlopen',
+                                           side_effect=replies):
+                        try:
+                            self.provider.translate('hi', 'eng', 'ru', [])
+                        except RuntimeError:
+                            pass  # slot and HTTP failures raise on purpose
+                    self.assertTrue(body.closed)
 
 
 if __name__ == '__main__':
