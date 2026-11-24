@@ -50,13 +50,19 @@ class LocalLlamaProvider:
     @classmethod
     def from_env(cls, data_dir):
         """Provider from LLAMA_LOCAL_* variables, or None when the model
-        file or the llama-server binary is not available."""
+        file or the llama-server binary is not available. The binary is
+        looked up on PATH, in the gitignored data directory
+        (data/bin/llama-cpp/, a llama.cpp release build) or via an explicit
+        LLAMA_SERVER_BIN path."""
         model_path = Path(os.environ.get(
             'LLAMA_LOCAL_MODEL',
             Path(data_dir) / 'models' / MODEL_DIR_NAME / MODEL_FILE))
         server_bin = os.environ.get('LLAMA_SERVER_BIN', 'llama-server')
-        resolved = shutil.which(server_bin) or (
-            server_bin if Path(server_bin).exists() else None)
+        resolved = (shutil.which(server_bin)
+                    or (server_bin if Path(server_bin).exists() else None)
+                    or (Path(data_dir) / 'bin' / 'llama-cpp' / 'llama-server'
+                        if (Path(data_dir) / 'bin' / 'llama-cpp' / 'llama-server'
+                            ).exists() else None))
         if not model_path.exists() or not resolved:
             return None
         port = int(os.environ.get('LLAMA_LOCAL_PORT', '8802'))

@@ -181,8 +181,44 @@ REQUIREMENTS
 The Python environment is managed with **Poetry 2.x** (see `pyproject.toml`;
 an in-project `.venv` is created automatically) and requires **python>=3.14**.
 Install per use case: `poetry install` (CLI/core), `--with desktop` (Qt GUI),
-`--with web` (web backend), `--with tools` (one-time offline model conversion).
+`--with web` (web backend), `--with tools` (optional faster dictionary build).
 SpaCy ships the English, German and Russian language models as pinned wheels.
+
+SYSTEM DEPENDENCIES
+-------------------
+* **llama.cpp** (`llama-server`) - only for the local HY-MT1.5 fallback
+  engine. Resolved from `PATH`, an explicit `LLAMA_SERVER_BIN`, or the
+  release build placed in `data/bin/llama-cpp/` (any llama.cpp release
+  tarball works: unpack it there). Not needed when only the remote engine
+  is used.
+* **gettext toolchain** (`msgfmt`) - developer-only, to recompile locale
+  catalogs after editing `.po` files (`tools/compile_locales.sh`; the
+  compiled `.mo` files are committed).
+* **ripgrep/grep** and ~3.4 GB of network - only for the one-time
+  dictionary build (`tools/build_dictionary.py` streams the kaikki.org
+  dumps; downloads are cached under `tmp/dict-build/`).
+
+EXTERNAL LLM WIRING
+-------------------
+The remote engine speaks the OpenAI chat-completions dialect of an
+Ollama or llama.cpp server on the LAN. All wiring belongs in the
+gitignored `.env` next to the repository (secrets never enter it):
+
+    OLLAMA_BASE_URL    server endpoint, e.g. http://<host>:8011/v1
+    OLLAMA_MODEL       model id/path as the server reports it
+    OLLAMA_API_KEY     bearer token; omit when the server has none
+
+Local fallback wiring (all optional, defaults in parentheses):
+
+    LLAMA_LOCAL_MODEL  GGUF path (data/models/hymt15-1.8b-q4km/HY-MT1.5-...)
+    LLAMA_LOCAL_PORT   llama-server port (8802)
+    LLAMA_SERVER_BIN   server binary (PATH, then data/bin/llama-cpp/)
+
+Also read from `.env`/environment: `HF_TOKEN` (faster model downloads),
+`SUBTITLE_LEARNING_DATA_DIR` (data directory override) and
+`SUBTITLE_LEARNING_CACHE_MAX_BYTES` (translation LRU budget). With no
+remote wiring and no local model the phrase endpoint answers 503 and the
+UI keeps the dictionary view; nothing requires an online service.
 
 INSTALLATION
 ------------

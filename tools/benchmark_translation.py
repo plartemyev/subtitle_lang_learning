@@ -52,10 +52,6 @@ PHRASES_PER_FILE = 30
 
 LANG_NAMES = {'en': 'English', 'de': 'German', 'ru': 'Russian', 'th': 'Thai'}
 LANG_TAGS = {'en': 'en', 'de': 'de', 'ru': 'ru', 'th': 'th'}
-NLLB_CODES = {'en': 'eng_Latn', 'de': 'deu_Latn', 'ru': 'rus_Cyrl',
-              'th': 'tha_Thai'}
-MADLAD_CODES = {'en': '<2en>', 'de': '<2de>', 'ru': '<2ru>', 'th': '<2th>'}
-
 SUBTITLE_SYSTEM = (
     'You are a professional subtitle translator. Translate subtitle lines '
     'accurately, preserving tone, register and colloquial style. '
@@ -113,56 +109,6 @@ def pairs_for(code):
 # engines
 
 
-class CT2Engine:
-    """In-process CTranslate2 encoder-decoder (NLLB or MADLAD flavor)."""
-
-    def __init__(self, key, model_dir, kind, pairs=None):
-        self.key = key
-        self.model_dir = MODELS_DIR / model_dir
-        self.kind = kind
-        self.pairs = pairs
-        self._translator = None
-        self._tokenizer = None
-
-    def _load(self):
-        if self._translator is not None:
-            return
-        import ctranslate2
-        self._translator = ctranslate2.Translator(str(self.model_dir),
-                                                  device='cpu')
-        if self.kind == 'nllb':
-            from transformers import AutoTokenizer
-            self._tokenizer = AutoTokenizer.from_pretrained(str(self.model_dir))
-        else:
-            import sentencepiece
-            self._tokenizer = sentencepiece.SentencePieceProcessor(
-                model_file=str(self.model_dir / 'spiece.model'))
-        logger.info('%s: model loaded (%s)', self.key, self.model_dir)
-
-    def translate(self, text, source_code, target_locale, words):
-        self._load()
-        target = NLLB_CODES[target_locale] if self.kind == 'nllb' \
-            else MADLAD_CODES[target_locale]
-        start = time.perf_counter()
-        if self.kind == 'nllb':
-            pieces = self._tokenizer.tokenize(text)
-            source = [NLLB_CODES[SOURCE_LOCALE[source_code]]] + pieces + ['</s>']
-            result = self._translator.translate_batch(
-                [source], target_prefix=[[target]], beam_size=4)
-            output = result[0].hypotheses[0]
-            body = [token for token in output if token != target and token != '</s>']
-            ids = self._tokenizer.convert_tokens_to_ids(body)
-            translation = self._tokenizer.decode(ids, skip_special_tokens=True)
-        else:
-            pieces = self._tokenizer.encode(text, out_type=str)
-            source = [target] + pieces
-            result = self._translator.translate_batch([source], beam_size=4)
-            body = [token for token in result[0].hypotheses[0]
-                    if token != '</s>']
-            translation = self._tokenizer.decode(body).replace('▁', ' ')
-        return translation.strip(), (time.perf_counter() - start) * 1000
-
-
 class HTTPError(Exception):
     pass
 
@@ -201,9 +147,15 @@ class LiteralDictionaryEngine:
     def __init__(self, key):
         from core.dictionary import ReverseDictionaryIndex
         from core.literal import LiteralDictionary
-        reverse_path = RESULTS_DIR / 'reverse.sqlite'
+        # reuse the production reverse index when it exists, otherwise
+        # derive one into the benchmark results directory
+        reverse_path = (Path(os.environ.get(
+            'SUBTITLE_LEARNING_DATA_DIR', REPO / 'data'))
+            / 'dictionary' / 'reverse.sqlite')
         if not reverse_path.exists():
-            build_reverse_index(DICTIONARY_DB, reverse_path)
+            reverse_path = RESULTS_DIR / 'reverse.sqlite'
+            if not reverse_path.exists():
+                build_reverse_index(DICTIONARY_DB, reverse_path)
         reverse = ReverseDictionaryIndex(str(reverse_path))
         self._literal = LiteralDictionary(KaikkiDictionary(str(DICTIONARY_DB)),
                                           reverse)
@@ -365,8 +317,6 @@ def build_engines(env):
     models = MODELS_DIR
     engines = {
         'literal': LiteralDictionaryEngine('literal'),
-        'nllb600': CT2Engine('nllb600', 'nllb-600m-ct2', 'nllb'),
-        'madlad3b': CT2Engine('madlad3b', 'madlad400-3b-mt-ct2-int8', 'madlad'),
         'qwen36-35b': RemoteOpenAIEngine(
             'qwen36-35b', env['OLLAMA_BASE_URL'],
             env['OLLAMA_API_KEY'], env['OLLAMA_MODEL'],
@@ -481,10 +431,6 @@ def run_engine(engine, phrase_sets, only=None, probe=True):
                     continue
                 if engine.pairs is not None and (code, target) not in engine.pairs:
                     continue
-                if isinstance(engine, CT2Engine) and not engine.model_dir.exists():
-                    logger.warning('%s: model missing, skipping (%s)',
-                                   engine.key, engine.model_dir)
-                    return
                 if isinstance(engine, LlamaServerEngine) and not started:
                     engine.start()
                     started = True
@@ -701,7 +647,7 @@ def main():
 
     for key in selected:
         logger.info('=== engine %s ===', key)
-        if isinstance(engines[key], (LlamaServerEngine, CT2Engine)):
+        if isinstance(engines[key], LlamaServerEngine):
             wait_for_quiet_machine()
         run_engine(engines[key], phrase_sets, only=only,
                    probe=not args.no_probe)
