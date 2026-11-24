@@ -153,7 +153,11 @@ terms respected).
    нехорошо -> нехороший -> "not good"), prefers non-transliteration
    translations (мужик -> "man", not "muzhik"), transliterates
    case-preserving (Ч -> Ch), and keeps a reverse index for single-word
-   data gaps.
+   data gaps. A longest-match n-gram sweep (up to 6 tokens) reads
+   multi-word headwords before word-by-word glossing - idioms carry their
+   own dictionary rows ("ups and downs" -> "взлёты и паде́ния", "take it
+   easy" -> "расслабля́ться") and are unreachable token-by-token ("downs"
+   alone can only gloss to "пух").
 7. **Fallback decision**: HY-MT1.5-1.8B (~3.9 s median, audited clean,
    Thai-capable, license workable in the end-user-download flow) is the
    accepted offline fallback for the production provider.

@@ -310,7 +310,10 @@ def transliterate(word, target_locale):
 class LiteralDictionaryEngine:
     """Word-for-word dictionary glossing, no model at all.
 
-    Per token, in order: dictionary lookup of the surface form, the annotated
+    A longest-match sweep over consecutive tokens (up to MAX_NGRAM) reads
+    multi-word headwords first - idioms like "ups and downs" carry their own
+    dictionary rows and are unreachable word-by-word. Single tokens then go
+    through, in order: dictionary lookup of the surface form, the annotated
     lemma and pymorphy3 normal forms (spaCy misses Russian case forms like
     вам -> вы); among an entry's target translations prefer the first one
     that is not just a transliteration of the source (мужик -> man, not
@@ -322,41 +325,67 @@ class LiteralDictionaryEngine:
     boundaries).
     """
 
+    MAX_NGRAM = 6
+
     def __init__(self, key):
         self.key = key
         self.pairs = None
+
+    def _first_translation(self, dictionary, source_code, target_locale,
+                           candidates, naive, pos=None):
+        """(pos, translation) of the first entry with a target translation
+        that is not the naive transliteration of the source, or None."""
+        for candidate in candidates:
+            result = dictionary.lookup(source_code, target_locale, candidate,
+                                       lemma=candidate, pos=pos)
+            for entry in result['entries']:
+                options = [term for term in entry['translations']
+                           if term.strip().casefold() != naive]
+                if options:
+                    return entry['pos'], options[0]
+        return None
 
     def translate(self, text, source_code, target_locale, words):
         start = time.perf_counter()
         dictionary = _shared_dictionary()
         reverse = _shared_reverse_index()
         glosses = []
-        for word in words:
+        index = 0
+        while index < len(words):
+            word = words[index]
             if word['pos'] == 'PUNCT':
                 glosses.append(word['text'])
+                index += 1
+                continue
+            multi = None
+            for size in range(min(self.MAX_NGRAM, len(words) - index), 1, -1):
+                chunk = words[index:index + size]
+                if any(w['pos'] == 'PUNCT' for w in chunk):
+                    continue
+                ngram = ' '.join(w['text'] for w in chunk)
+                naive = transliterate(ngram, target_locale).strip().casefold()
+                multi = self._first_translation(dictionary, source_code,
+                                                target_locale, [ngram], naive)
+                if multi is not None:
+                    glosses.append(multi[1])
+                    index += size
+                    break
+            if multi is not None:
                 continue
             naive = transliterate(word['text'],
                                   target_locale).strip().casefold()
-            translation = None
-            candidates = dict.fromkeys([word['text'], word['lemma'],
-                                        *_lemma_candidates(word['text'])])
-            for candidate in candidates:
-                result = dictionary.lookup(source_code, target_locale,
-                                           candidate, lemma=candidate,
-                                           pos=word['pos'])
-                for entry in result['entries']:
-                    options = [term for term in entry['translations']
-                               if term.strip().casefold() != naive]
-                    if options:
-                        translation = options[0]
-                        break
-                if translation is not None:
-                    break
-            if translation is None:
-                translation = (reverse.lookup(source_code, target_locale,
+            candidates = [word['text'], word['lemma'],
+                          *_lemma_candidates(word['text'])]
+            single = self._first_translation(dictionary, source_code,
+                                             target_locale, candidates,
+                                             naive, pos=word['pos'])
+            if single is not None:
+                glosses.append(single[1])
+            else:
+                glosses.append(reverse.lookup(source_code, target_locale,
                                               word['text'])
                                or transliterate(word['text'], target_locale))
-            glosses.append(translation)
+            index += 1
         return ' '.join(glosses), (time.perf_counter() - start) * 1000
 
 
