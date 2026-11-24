@@ -20,10 +20,12 @@ from pydantic import BaseModel
 
 from core import analyzer
 from core.controller import AppController
-from core.dictionary import KaikkiDictionary
+from core.dictionary import KaikkiDictionary, ReverseDictionaryIndex
 from core.languages import DEFAULT_LANGUAGE_CODE, LANGUAGES
+from core.literal import LiteralDictionary
 from core.opensubtitles import OpenSubtitlesClient
-from core.translation import TranslationCache, cache_key, get_translator
+from core.translation import (FallbackProvider, LocalLlamaProvider,
+                              OllamaProvider, TranslationCache, cache_key)
 from ui import i18n
 from web.serializers import analysis_to_dict, phrase_translation_to_dict
 
@@ -31,14 +33,16 @@ logger = logging.getLogger(__name__)
 
 STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
 
-# Offline translation and dictionary artifacts live outside the repository in
-# the data directory (env override), prepared once by tools/prepare_nllb.py
-# and tools/build_dictionary.py - see README.
+# Translation and dictionary artifacts live outside the repository in the
+# data directory (env override), prepared once by tools/build_dictionary.py
+# and tools/prepare_hymt15.py - see README. The model engines are a remote
+# OpenAI-compatible server (OLLAMA_* variables from the gitignored .env)
+# with a local HY-MT1.5-1.8B llama.cpp fallback.
 DATA_DIR = Path(os.environ.get(
     'SUBTITLE_LEARNING_DATA_DIR',
     Path(__file__).resolve().parent.parent / 'data'))
-TRANSLATION_MODEL_DIR = DATA_DIR / 'models' / 'nllb-600m-ct2'
 DICTIONARY_DB_PATH = DATA_DIR / 'dictionary' / 'kaikki.sqlite'
+DICTIONARY_REVERSE_PATH = DATA_DIR / 'dictionary' / 'reverse.sqlite'
 TRANSLATION_CACHE_PATH = DATA_DIR / 'cache' / 'translations.sqlite'
 
 app = FastAPI(title='subtitle_lang_learning', docs_url=None, redoc_url=None, openapi_url=None)
@@ -50,19 +54,42 @@ def get_subtitles_client_factory() -> Callable[[], OpenSubtitlesClient]:
     return OpenSubtitlesClient
 
 
-_translator = None
+_provider = None
 _dictionary = None
 _translation_cache = None
+_literal_dictionary = None
 
 
 def get_translation_provider():
-    """Process-wide offline translator; None until the model is prepared."""
-    global _translator
-    if not TRANSLATION_MODEL_DIR.joinpath('model.bin').exists():
+    """Process-wide provider chain: remote model first, local HY-MT1.5
+    fallback second; None when no engine is configured."""
+    global _provider
+    if _provider is not None:
+        return _provider
+    providers = []
+    remote = OllamaProvider.from_env()
+    if remote is not None:
+        providers.append(remote)
+    local = LocalLlamaProvider.from_env(DATA_DIR)
+    if local is not None:
+        providers.append(local)
+    _provider = FallbackProvider(providers) if providers else None
+    return _provider
+
+
+def get_literal_dictionary():
+    """Process-wide word-by-word dictionary view; the reverse index is
+    optional and picked up whenever its database appears."""
+    global _literal_dictionary
+    if not DICTIONARY_DB_PATH.exists():
         return None
-    if _translator is None:
-        _translator = get_translator(TRANSLATION_MODEL_DIR)
-    return _translator
+    if _literal_dictionary is None:
+        _literal_dictionary = LiteralDictionary(
+            KaikkiDictionary(DICTIONARY_DB_PATH))
+    if _literal_dictionary.reverse is None and DICTIONARY_REVERSE_PATH.exists():
+        _literal_dictionary.reverse = ReverseDictionaryIndex(
+            DICTIONARY_REVERSE_PATH)
+    return _literal_dictionary
 
 
 def get_dictionary():
@@ -186,6 +213,32 @@ def translate_phrase(query: PhraseQuery,
     payload = phrase_translation_to_dict(translation)
     cache.put(key, payload)
     return dict(payload, cached=False)
+
+
+@app.post('/api/translate/literal')
+def translate_literal(query: PhraseQuery,
+                      literal=Depends(get_literal_dictionary)):
+    """Instant word-by-word dictionary view of a phrase (no model).
+
+    Served before the model translation in the UI: the student immediately
+    sees how the phrase is assembled from dictionary pieces while the model
+    translation is still generating. A missing dictionary answers 503 with
+    the same structured message as the model engines; the frontend hides
+    the literal view in that case.
+    """
+    if query.language not in LANGUAGES:
+        raise HTTPException(status_code=400, detail={'error': 'unsupported language'})
+    if query.target not in i18n.LOCALES:
+        raise HTTPException(status_code=400, detail={'error': 'unsupported target'})
+    text = query.text.strip()
+    if not text:
+        raise HTTPException(status_code=400, detail={'error': 'empty text'})
+    if literal is None:
+        raise HTTPException(status_code=503, detail={
+            'message': {'code': 'translation_unavailable', 'params': {}}})
+    words = analyzer.tokenize_phrase(text, query.language)
+    return {'literal': literal.translate(text, query.language, query.target,
+                                         words)}
 
 
 @app.get('/api/dictionary/lookup')

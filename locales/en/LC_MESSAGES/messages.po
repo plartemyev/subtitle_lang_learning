@@ -37,6 +37,8 @@ msgstr "Offline translation is unavailable (translation model not prepared)"
 #. Caption of the offline phrase-translation block under the context phrase.
 msgid "translation_label"
 msgstr "Translation"
+msgid "translation_literal_label"
+msgstr "Word by word"
 
 #. Tooltip line: the aligned translation of the hovered token (offline model).
 msgid "token_translation_line"

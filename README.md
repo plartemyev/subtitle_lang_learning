@@ -79,42 +79,55 @@ The API consumed by the page (handy for scripting):
 
 OFFLINE TRANSLATION
 -------------------
-The web backend translates without any online provider: NLLB-200-distilled-600M
-(Meta, CC-BY-NC-4.0 - noncommercial use only) runs under CTranslate2 on CPU.
-One decoding pass produces the phrase translation *and* the cross-attention
-matrix. The attention alignment is only a per-word fallback: NLLB
-cross-attention is diffuse (most of its mass sits on the sentence-end
-sentinel), so the Wiktionary dictionary layer is the primary per-word
-tooltip source - reordered to put the sense that actually appears in the
-phrase translation first - and the model's aligned word is shown only when
-the dictionary has nothing for the token. Phrase translation calls are
-cached in an sqlite LRU cache (~2 GiB budget, counter based).
+Phrase translation runs through a fallback chain of model engines. The
+primary one is a remote OpenAI-compatible server - Ollama or llama.cpp
+serving a large multilingual model (the reference deployment:
+Qwen3.6-35B) - configured with `OLLAMA_BASE_URL`, `OLLAMA_MODEL` and
+`OLLAMA_API_KEY` read from the gitignored `.env`; thinking mode is
+explicitly disabled and the collapsed prompt protocol follows the
+benchmark in docs/offline-translation-research.md. The offline fallback
+is Tencent HY-MT1.5-1.8B (Q4_K_M GGUF, ~1.1 GB) under a local llama.cpp
+subprocess, prepared once by `tools/prepare_hymt15.py`. When the remote
+server is unreachable the chain falls to the local model, then to 503
+`translation_unavailable`; per-word tooltips are dictionary-based and
+unaffected. Phrase translation calls are cached in an sqlite LRU cache
+(~2 GiB budget, counter based).
+
+Besides the model line the UI renders an instant word-by-word dictionary
+view (the "literal" column of the benchmark): longest-match idiom sweep,
+surface/lemma/POS dictionary picks, a reverse index and transliteration
+fallback - see docs/offline-translation-research.md. Both frontends
+debounce phrase translation at 300 ms.
 
 Everything lives outside the repository in the data directory (`data/`
 by default, override with `SUBTITLE_LEARNING_DATA_DIR`):
 
-    data/models/nllb-600m-ct2/       converted model + tokenizer files
+    data/models/hymt15-1.8b-q4km/    local fallback model GGUF
     data/dictionary/kaikki.sqlite    Wiktionary glosses/translations lookup
+    data/dictionary/reverse.sqlite   translation term -> headword index
     data/cache/translations.sqlite   phrase translation LRU cache
 
-Prepare once (the dictionary first run streams ~3.4 GB of Wiktionary dumps;
-the model preparation downloads ~2.4 GB of weights and needs the poetry
-tools group with CPU torch):
+Prepare once (the dictionary build streams ~3.4 GB of Wiktionary dumps;
+a llama.cpp binary on PATH is needed for the local fallback - the
+distribution `llama-server` package or a llama.cpp release build):
 
-    poetry install --with web,tools
-    poetry run python tools/prepare_nllb.py
+    poetry install --with web
     poetry run python tools/build_dictionary.py
+    poetry run python tools/prepare_hymt15.py
 
 A HuggingFace token speeds the model download up: put `HF_TOKEN=...` into
-the gitignored `.env` file next to the repository. Both pieces degrade
-gracefully: without the model `/api/translate/phrase` answers 503
-`translation_unavailable`, without the dictionary `/api/dictionary/lookup`
-returns no entries. The docker compose stack mounts `./data` into the
-container, so one directory serves a local and a containerized backend.
+the gitignored `.env` file next to the repository. The pieces degrade
+gracefully: without the remote server and the local model
+`/api/translate/phrase` answers 503 `translation_unavailable`, without
+the dictionary `/api/dictionary/lookup` returns no entries and the
+literal view stays hidden. The docker compose stack mounts `./data` into
+the container, so one directory serves a local and a containerized
+backend.
 
 Attribution: dictionary data is extracted from Wiktionary via
-wiktextract/kaikki.org (CC BY-SA 4.0); NLLB-200 weights are CC-BY-NC-4.0
-(research model, noncommercial use only).
+wiktextract/kaikki.org (CC BY-SA 4.0); HY-MT1.5 weights carry the Tencent
+HY Community License (open weights with restrictions - the repository
+ships no weights, every user downloads their own copy).
 
 Engine replacement research (Nov 2026): fifteen offline engines were
 benchmarked against real subtitle phrases with a 3 s/phrase latency budget

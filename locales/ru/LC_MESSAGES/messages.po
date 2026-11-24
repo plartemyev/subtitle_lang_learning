@@ -35,6 +35,8 @@ msgstr "Автономный перевод недоступен (модель �
 
 msgid "translation_label"
 msgstr "Перевод"
+msgid "translation_literal_label"
+msgstr "Дословно"
 
 msgid "token_translation_line"
 msgstr "перевод: {translation}"

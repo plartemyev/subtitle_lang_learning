@@ -16,7 +16,7 @@ from itertools import count
 
 DEFAULT_MAX_BYTES = 2 * 1024 ** 3
 EVICTION_BATCH = 64
-CACHE_VERSION = 'v1'  # bump to invalidate stored payloads after format changes
+CACHE_VERSION = 'v2'  # bump to invalidate stored payloads after format changes
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS translations (

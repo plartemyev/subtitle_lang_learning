@@ -34,6 +34,8 @@ msgstr "การแปลออฟไลน์ใช้ไม่ได้ (ย�
 
 msgid "translation_label"
 msgstr "คำแปล"
+msgid "translation_literal_label"
+msgstr "คำต่อคำ"
 
 msgid "token_translation_line"
 msgstr "คำแปล: {translation}"

@@ -34,6 +34,8 @@ msgstr "Offline-Übersetzung ist nicht verfügbar (Übersetzungsmodell nicht vor
 
 msgid "translation_label"
 msgstr "Übersetzung"
+msgid "translation_literal_label"
+msgstr "Wort für Wort"
 
 msgid "token_translation_line"
 msgstr "Übersetzung: {translation}"

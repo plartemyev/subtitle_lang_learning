@@ -23,6 +23,8 @@ let busy = false;
  * builders and the translation line read. */
 const phraseFetches = new Map();      // locale|language|text -> Promise<payload>
 const phrasePayloads = new Map();     // same key -> resolved payload
+const literalFetches = new Map();     // locale|language|text -> Promise<payload>
+const literalPayloads = new Map();    // same key -> resolved payload
 const dictionaryFetches = new Map();  // locale|language|word|lemma|pos -> Promise
 const dictionaryPayloads = new Map(); // same key -> resolved payload
 let phraseTranslationTimer = null;
@@ -122,6 +124,7 @@ function retranslate() {
   els.legendLabel.textContent = i18n.tr('legend_in_phrase');
   els.legendHint.textContent = i18n.tr('legend_hint');
   els.phraseTranslationLabel.textContent = i18n.tr('translation_label');
+  els.phraseLiteralLabel.textContent = i18n.tr('translation_literal_label');
   els.symbolsMenuTitle.textContent = i18n.tr('menu_symbols');
   els.languageMenuTitle.textContent = i18n.tr('menu_language');
   for (const option of els.symbolSystem.options) {
@@ -300,8 +303,7 @@ function tokenTip(word, entry, language, phrase) {
 
 /* Wiktionary translations of the hovered token (primary line) + gloss, both
  * into the active UI locale; the model's aligned word fills in only when the
- * dictionary has nothing for the token - the NLLB cross-attention alignment
- * is too unreliable to show beside real translations. */
+ * dictionary has nothing for the token - model providers carry no alignment. */
 function appendTranslationLines(nodes, word, language, phrase) {
   const payload = phrase ? phrasePayloads.get(phraseKey(phrase)) : null;
   const index = phrase ? phrase.words.indexOf(word) : -1;
@@ -476,6 +478,37 @@ function fetchDictionaryEntry(word, language) {
   return dictionaryFetches.get(key);
 }
 
+/* instant word-by-word dictionary view: served before the model answers */
+function fetchLiteralTranslation(phrase) {
+  const key = phraseKey(phrase);
+  if (!literalFetches.has(key)) {
+    const request = fetch('/api/translate/literal', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({text: phrase.text,
+                            language: state.analysis.language_code,
+                            target: i18n.locale()}),
+    }).then(async (response) => {
+      const payload = response.ok ? await response.json() : {unavailable: true};
+      literalPayloads.set(key, payload);
+      return payload;
+    }).catch(() => {
+      const payload = {unavailable: true};
+      literalPayloads.set(key, payload);
+      return payload;
+    });
+    literalFetches.set(key, request);
+  }
+  return literalFetches.get(key);
+}
+
+function renderLiteralTranslation(phrase, payload) {
+  els.phraseLiteral.hidden = !payload || !payload.literal;
+  if (payload && payload.literal) {
+    els.phraseLiteralText.textContent = payload.literal;
+  }
+}
+
 function schedulePhraseTranslation() {
   clearTimeout(phraseTranslationTimer);
   phraseTranslationTimer = setTimeout(updatePhraseTranslation, 300);
@@ -485,9 +518,11 @@ async function updatePhraseTranslation() {
   const phrase = selectedPhrase();
   if (!phrase) {
     els.phraseTranslation.hidden = true;
+    els.phraseLiteral.hidden = true;
     return;
   }
-  renderPhraseTranslation(phrase, null);  // spinner while the model decodes
+  renderPhraseTranslation(phrase, null);  // spinner while the model generates
+  renderLiteralTranslation(phrase, await fetchLiteralTranslation(phrase));
   const payload = await fetchPhraseTranslation(phrase);
   if (selectedPhrase() !== phrase) return;  // selection moved on meanwhile
   renderPhraseTranslation(phrase, payload);
@@ -524,10 +559,13 @@ function applyAnalysis(analysis) {
   state.selectedWord = '';
   phraseFetches.clear();
   phrasePayloads.clear();
+  literalFetches.clear();
+  literalPayloads.clear();
   dictionaryFetches.clear();
   dictionaryPayloads.clear();
   els.details.hidden = true;
   els.phraseTranslation.hidden = true;
+  els.phraseLiteral.hidden = true;
   populateWordsList();
 }
 
@@ -683,6 +721,9 @@ async function init() {
   els.phraseTranslation = el('phrase-translation');
   els.phraseTranslationLabel = el('phrase-translation-label');
   els.phraseTranslationText = el('phrase-translation-text');
+  els.phraseLiteral = el('phrase-literal');
+  els.phraseLiteralLabel = el('phrase-literal-label');
+  els.phraseLiteralText = el('phrase-literal-text');
   els.legend = el('legend');
   els.legendLabel = el('legend-label');
   els.legendHint = el('legend-hint');

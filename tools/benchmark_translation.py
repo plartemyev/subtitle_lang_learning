@@ -17,7 +17,6 @@ import argparse
 import json
 import logging
 import os
-import sqlite3
 import statistics
 import subprocess
 import sys
@@ -30,7 +29,7 @@ REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO))
 
 from core import analyzer  # noqa: E402
-from core.dictionary import KaikkiDictionary  # noqa: E402
+from core.dictionary import KaikkiDictionary, build_reverse_index  # noqa: E402
 
 logger = logging.getLogger('benchmark')
 
@@ -56,9 +55,6 @@ LANG_TAGS = {'en': 'en', 'de': 'de', 'ru': 'ru', 'th': 'th'}
 NLLB_CODES = {'en': 'eng_Latn', 'de': 'deu_Latn', 'ru': 'rus_Cyrl',
               'th': 'tha_Thai'}
 MADLAD_CODES = {'en': '<2en>', 'de': '<2de>', 'ru': '<2ru>', 'th': '<2th>'}
-
-GLOSSARY_POS = {'NOUN', 'VERB', 'ADJ', 'ADV', 'PROPN', 'NUM'}
-GLOSSARY_LIMIT = 8
 
 SUBTITLE_SYSTEM = (
     'You are a professional subtitle translator. Translate subtitle lines '
@@ -111,31 +107,6 @@ def load_phrase_sets():
 
 def pairs_for(code):
     return [locale for locale in UI_LOCALES if locale != SOURCE_LOCALE[code]]
-
-
-# ---------------------------------------------------------------------------
-# glossary (POE metadata + Wiktionary dictionary -> term list)
-
-
-def build_glossary(dictionary, source_code, target_locale, words):
-    """Term list for glossary-augmented prompting; empty when nothing found."""
-    glossary = []
-    for word in words:
-        if word['pos'] not in GLOSSARY_POS or len(glossary) >= GLOSSARY_LIMIT:
-            continue
-        result = dictionary.lookup(source_code, target_locale, word['text'],
-                                   lemma=word['lemma'], pos=word['pos'])
-        for entry in result['entries']:
-            # lookup already prefers rows carrying target-locale translations
-            # and _entry_to_dict narrows 'translations' to that locale's list
-            translations = entry['translations']
-            if translations:
-                glossary.append(f"{word['text']} -> {translations[0]}")
-                break
-            if entry['glosses']:
-                glossary.append(f"{word['text']} -> {entry['glosses'][0]}")
-                break
-    return glossary
 
 
 # ---------------------------------------------------------------------------
@@ -223,252 +194,27 @@ def _strip_reasoning(text):
 # ---------------------------------------------------------------------------
 # literal word-by-word "translation" (dictionary glossing, no model)
 
-CYRILLIC_TO_LATIN = {
-    'а': 'a', 'б': 'b', 'в': 'v', 'г': 'g', 'д': 'd', 'е': 'e', 'ё': 'yo',
-    'ж': 'zh', 'з': 'z', 'и': 'i', 'й': 'y', 'к': 'k', 'л': 'l', 'м': 'm',
-    'н': 'n', 'о': 'o', 'п': 'p', 'р': 'r', 'с': 's', 'т': 't', 'у': 'u',
-    'ф': 'f', 'х': 'kh', 'ц': 'ts', 'ч': 'ch', 'ш': 'sh', 'щ': 'shch',
-    'ъ': '', 'ы': 'y', 'ь': '', 'э': 'e', 'ю': 'yu', 'я': 'ya'}
-LATIN_TO_CYRILLIC_DIGRAPHS = {
-    'ch': 'ч', 'sh': 'ш', 'sch': 'щ', 'shch': 'щ', 'zh': 'ж', 'kh': 'х',
-    'ts': 'ц', 'ck': 'к', 'th': 'т', 'ph': 'ф', 'oo': 'у', 'ee': 'и',
-    'ya': 'я', 'yu': 'ю', 'yo': 'ё', 'ja': 'я', 'ju': 'ю', 'w': 'в'}
-LATIN_TO_CYRILLIC = {
-    'a': 'а', 'b': 'б', 'c': 'к', 'd': 'д', 'e': 'е', 'f': 'ф', 'g': 'г',
-    'h': 'х', 'i': 'и', 'j': 'дж', 'k': 'к', 'l': 'л', 'm': 'м', 'n': 'н',
-    'o': 'о', 'p': 'п', 'q': 'к', 'r': 'р', 's': 'с', 't': 'т', 'u': 'у',
-    'v': 'в', 'x': 'кс', 'y': 'ы', 'z': 'з'}
-LATIN_TO_THAI_DIGRAPHS = {
-    'kh': 'ค', 'ph': 'พ', 'th': 'ท', 'ch': 'ช', 'sh': 'ช', 'ng': 'ง',
-    'ck': 'ก', 'oo': 'ู'}
-LATIN_TO_THAI = {
-    'k': 'ก', 'g': 'ก', 't': 'ต', 'd': 'ด', 'n': 'น', 'b': 'บ', 'p': 'ป',
-    'f': 'ฟ', 'v': 'ว', 's': 'ส', 'h': 'ห', 'j': 'จ', 'z': 'ซ', 'm': 'ม',
-    'y': 'ย', 'r': 'ร', 'l': 'ล', 'w': 'ว', 'c': 'ก', 'x': 'กซ',
-    'a': 'า', 'e': 'เอ', 'i': 'อิ', 'o': 'โอ', 'u': 'อุ', 'q': '',
-    'A': 'า', 'E': 'เอ', 'I': 'อิ', 'O': 'โอ', 'U': 'อุ'}
-
-
-def _is_cyrillic(text):
-    return any('а' <= ch.lower() <= 'я' or ch.lower() == 'ё'
-               for ch in text)
-
-
-def _latinize_cyrillic(word):
-    """Cyrillic -> Latin, keeping the word's capitalization (Ч -> Ch)."""
-    out = []
-    for ch in word:
-        mapped = CYRILLIC_TO_LATIN.get(ch.lower())
-        if mapped is None:
-            out.append(ch)
-        elif ch.isupper():
-            out.append(mapped.capitalize())
-        else:
-            out.append(mapped)
-    return ''.join(out)
-
-
-def transliterate(word, target_locale):
-    """Pure-algorithm script conversion for dictionary misses."""
-    if target_locale in ('en', 'de'):
-        return _latinize_cyrillic(word)
-    latin = _latinize_cyrillic(word) if _is_cyrillic(word) else word
-    if target_locale == 'ru':
-        out, index = [], 0
-        lowered = latin.lower()
-        while index < len(latin):
-            for size in (4, 3, 2):
-                piece = lowered[index:index + size]
-                if piece in LATIN_TO_CYRILLIC_DIGRAPHS:
-                    out.append(LATIN_TO_CYRILLIC_DIGRAPHS[piece])
-                    index += size
-                    break
-            else:
-                out.append(LATIN_TO_CYRILLIC.get(lowered[index],
-                                                 latin[index]))
-                index += 1
-        return ''.join(out)
-    if target_locale == 'th':
-        out, index = [], 0
-        lowered = latin.lower()
-        while index < len(latin):
-            for size in (3, 2):
-                piece = lowered[index:index + size]
-                if piece in LATIN_TO_THAI_DIGRAPHS:
-                    out.append(LATIN_TO_THAI_DIGRAPHS[piece])
-                    index += size
-                    break
-            else:
-                out.append(LATIN_TO_THAI.get(lowered[index],
-                                             LATIN_TO_THAI.get(latin[index],
-                                                               latin[index])))
-                index += 1
-        return ''.join(out)
-    return word
-
-
 class LiteralDictionaryEngine:
-    """Word-for-word dictionary glossing, no model at all.
-
-    A longest-match sweep over consecutive tokens (up to MAX_NGRAM) reads
-    multi-word headwords first - idioms like "ups and downs" carry their own
-    dictionary rows and are unreachable word-by-word. Single tokens then go
-    through, in order: dictionary lookup of the surface form, the annotated
-    lemma and pymorphy3 normal forms (spaCy misses Russian case forms like
-    вам -> вы); among an entry's target translations prefer the first one
-    that is not just a transliteration of the source (мужик -> man, not
-    muzhik); a reverse index over the dictionary plugs single-word data gaps
-    (the English edition lacks ru translations for "I", the Russian edition's
-    "я" entry translates back to "I"); algorithmic transliteration is the
-    last resort. Punctuation passes through; output is space-joined
-    source-order word glosses (also for Thai, where spaces mark gloss
-    boundaries).
-    """
-
-    MAX_NGRAM = 6
+    """Benchmark adapter over the core literal dictionary view (the same
+    implementation the web UI serves under /api/translate/literal)."""
 
     def __init__(self, key):
+        from core.dictionary import ReverseDictionaryIndex
+        from core.literal import LiteralDictionary
+        reverse_path = RESULTS_DIR / 'reverse.sqlite'
+        if not reverse_path.exists():
+            build_reverse_index(DICTIONARY_DB, reverse_path)
+        reverse = ReverseDictionaryIndex(str(reverse_path))
+        self._literal = LiteralDictionary(KaikkiDictionary(str(DICTIONARY_DB)),
+                                          reverse)
         self.key = key
         self.pairs = None
 
-    def _first_translation(self, dictionary, source_code, target_locale,
-                           candidates, naive, pos=None):
-        """(pos, translation) of the first entry with a target translation
-        that is not the naive transliteration of the source, or None."""
-        for candidate in candidates:
-            result = dictionary.lookup(source_code, target_locale, candidate,
-                                       lemma=candidate, pos=pos)
-            for entry in result['entries']:
-                options = [term for term in entry['translations']
-                           if term.strip().casefold() != naive]
-                if options:
-                    return entry['pos'], options[0]
-        return None
-
     def translate(self, text, source_code, target_locale, words):
         start = time.perf_counter()
-        dictionary = _shared_dictionary()
-        reverse = _shared_reverse_index()
-        glosses = []
-        index = 0
-        while index < len(words):
-            word = words[index]
-            if word['pos'] == 'PUNCT':
-                glosses.append(word['text'])
-                index += 1
-                continue
-            multi = None
-            for size in range(min(self.MAX_NGRAM, len(words) - index), 1, -1):
-                chunk = words[index:index + size]
-                if any(w['pos'] == 'PUNCT' for w in chunk):
-                    continue
-                ngram = ' '.join(w['text'] for w in chunk)
-                naive = transliterate(ngram, target_locale).strip().casefold()
-                multi = self._first_translation(dictionary, source_code,
-                                                target_locale, [ngram], naive)
-                if multi is not None:
-                    glosses.append(multi[1])
-                    index += size
-                    break
-            if multi is not None:
-                continue
-            naive = transliterate(word['text'],
-                                  target_locale).strip().casefold()
-            candidates = [word['text'], word['lemma'],
-                          *_lemma_candidates(word['text'])]
-            single = self._first_translation(dictionary, source_code,
-                                             target_locale, candidates,
-                                             naive, pos=word['pos'])
-            if single is not None:
-                glosses.append(single[1])
-            else:
-                glosses.append(reverse.lookup(source_code, target_locale,
-                                              word['text'])
-                               or transliterate(word['text'], target_locale))
-            index += 1
-        return ' '.join(glosses), (time.perf_counter() - start) * 1000
-
-
-_morph_analyzer = None
-
-
-def _lemma_candidates(word):
-    """Extra lookup candidates: pymorphy3 normal forms for Cyrillic words."""
-    global _morph_analyzer
-    if not _is_cyrillic(word):
-        return []
-    if _morph_analyzer is None:
-        try:
-            import pymorphy3
-            _morph_analyzer = pymorphy3.MorphAnalyzer()
-        except ImportError:
-            _morph_analyzer = False
-    if not _morph_analyzer:
-        return []
-    return list(dict.fromkeys(parse.normal_form
-                              for parse in _morph_analyzer.parse(word)[:4]))
-
-
-TARGET_EDITION = {'en': 'eng', 'de': 'deu', 'ru': 'rus', 'th': None}
-
-
-class ReverseDictionaryIndex:
-    """(edition, locale, translation term) -> headword, built once from the
-    kaikki database. For a missed source word it finds the target-language
-    headword whose translations contain that word."""
-
-    def __init__(self, path):
-        self._db = sqlite3.connect(str(path), check_same_thread=False)
-
-    def lookup(self, source_code, target_locale, term):
-        edition = TARGET_EDITION[target_locale]
-        if edition is None:
-            return None
-        row = self._db.execute(
-            'SELECT word FROM reverse WHERE edition=? AND locale=? AND '
-            'term=? ORDER BY word LIMIT 1',
-            (edition, target_locale, term.strip().casefold())).fetchone()
-        return row[0] if row else None
-
-
-_reverse_index_instance = None
-
-
-def _shared_reverse_index():
-    global _reverse_index_instance
-    if _reverse_index_instance is None:
-        path = RESULTS_DIR / 'reverse.sqlite'
-        if not path.exists():
-            _build_reverse_index(path)
-        _reverse_index_instance = ReverseDictionaryIndex(path)
-    return _reverse_index_instance
-
-
-def _build_reverse_index(path):
-    logger.info('building reverse translation index (one-time) ...')
-    source = sqlite3.connect(f'file:{DICTIONARY_DB}?mode=ro', uri=True)
-    target = sqlite3.connect(str(path))
-    target.execute('CREATE TABLE reverse (edition TEXT, locale TEXT, '
-                   'term TEXT, word TEXT, PRIMARY KEY (edition, locale, '
-                   'term, word))')
-    batch = []
-    for source_code, word, translations_json in source.execute(
-            'SELECT source, word, translations FROM entries'):
-        for locale, terms in json.loads(translations_json).items():
-            for term in terms:
-                batch.append((source_code, locale,
-                              term.strip().casefold(), word))
-        if len(batch) >= 50_000:
-            target.executemany('INSERT OR IGNORE INTO reverse VALUES '
-                               '(?, ?, ?, ?)', batch)
-            batch.clear()
-    if batch:
-        target.executemany('INSERT OR IGNORE INTO reverse VALUES '
-                           '(?, ?, ?, ?)', batch)
-    target.commit()
-    target.close()
-    source.close()
-    logger.info('reverse index ready: %s', path)
+        return (self._literal.translate(text, source_code, target_locale,
+                                        words),
+                (time.perf_counter() - start) * 1000)
 
 
 class LlamaServerEngine:
@@ -476,7 +222,7 @@ class LlamaServerEngine:
 
     def __init__(self, key, gguf_path, port, mode='chat', system=None,
                  user_template=None, raw_template=None, sampling=None,
-                 stop_sequences=None, server_args=None, glossary=False,
+                 stop_sequences=None, server_args=None,
                  pairs=None):
         self.key = key
         self.gguf_path = gguf_path
@@ -488,7 +234,6 @@ class LlamaServerEngine:
         self.sampling = sampling or {'temperature': 0.0}
         self.stop_sequences = stop_sequences
         self.server_args = server_args or []
-        self.glossary = glossary
         self.pairs = pairs
         self._process = None
 
@@ -532,11 +277,6 @@ class LlamaServerEngine:
 
     def _prompt(self, text, source_code, target_locale, words):
         """Chat instruction or raw completion prompt for one phrase."""
-        if self.glossary:
-            glossary = build_glossary(_shared_dictionary(), source_code,
-                                      target_locale, words)
-        else:
-            glossary = []
         source_name = LANG_NAMES[SOURCE_LOCALE[source_code]]
         target_name = LANG_NAMES[target_locale]
         if self.mode == 'chat':
@@ -547,8 +287,6 @@ class LlamaServerEngine:
         context = {'source_tag': LANG_TAGS[SOURCE_LOCALE[source_code]],
                    'target_tag': LANG_TAGS[target_locale],
                    'source': source_name, 'target': target_name, 'text': text}
-        if glossary:
-            context['text'] = f"{context['text']} (glossary: {', '.join(glossary)})"
         return self.raw_template.format(**context)
 
     def translate(self, text, source_code, target_locale, words):
@@ -579,13 +317,12 @@ class LlamaServerEngine:
 class RemoteOpenAIEngine:
     """OpenAI-compatible endpoint (the llama server on the LAN box)."""
 
-    def __init__(self, key, base_url, api_key, model, glossary=False,
+    def __init__(self, key, base_url, api_key, model,
                  extra_body=None, pairs=None):
         self.key = key
         self.base_url = base_url.rstrip('/')
         self.api_key = api_key
         self.model = model
-        self.glossary = glossary
         self.extra_body = extra_body or {}
         self.pairs = pairs
         self._warm = False
@@ -606,16 +343,6 @@ class RemoteOpenAIEngine:
             logger.info('%s: reachable, first call %.0f ms', self.key, latency)
         return _strip_reasoning(
             result['choices'][0]['message']['content'].strip()), latency
-
-
-_shared_dictionary_instance = None
-
-
-def _shared_dictionary():
-    global _shared_dictionary_instance
-    if _shared_dictionary_instance is None:
-        _shared_dictionary_instance = KaikkiDictionary(str(DICTIONARY_DB))
-    return _shared_dictionary_instance
 
 
 # Sampling settings and prompt formats follow the model cards verbatim;
@@ -641,13 +368,8 @@ def build_engines(env):
         'nllb600': CT2Engine('nllb600', 'nllb-600m-ct2', 'nllb'),
         'madlad3b': CT2Engine('madlad3b', 'madlad400-3b-mt-ct2-int8', 'madlad'),
         'qwen36-35b': RemoteOpenAIEngine(
-            'qwen36-35b', env['LLAMA_TRANSLATE_BASE_URL'],
-            env['LLAMA_TRANSLATE_API_KEY'], env['LLAMA_TRANSLATE_MODEL'],
-            extra_body={'chat_template_kwargs': {'enable_thinking': False}}),
-        'qwen36-35b-gloss': RemoteOpenAIEngine(
-            'qwen36-35b-gloss', env['LLAMA_TRANSLATE_BASE_URL'],
-            env['LLAMA_TRANSLATE_API_KEY'], env['LLAMA_TRANSLATE_MODEL'],
-            glossary=True,
+            'qwen36-35b', env['OLLAMA_BASE_URL'],
+            env['OLLAMA_API_KEY'], env['OLLAMA_MODEL'],
             extra_body={'chat_template_kwargs': {'enable_thinking': False}}),
         'qwen3-4b': LlamaServerEngine(
             'qwen3-4b', models / 'qwen3-4b-instruct-2507-q4km'

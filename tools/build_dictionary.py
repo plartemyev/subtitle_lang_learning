@@ -197,7 +197,13 @@ def main():
     for source_code in languages:
         build_language(source_code, db, cache_dir)
     db.close()
+    from core.dictionary import build_reverse_index
+    reverse_path = Path(args.data_dir) / 'dictionary' / 'reverse.sqlite'
+    if reverse_path.exists():
+        reverse_path.unlink()  # stale terms would survive an enriched rebuild
+    build_reverse_index(db_path, reverse_path)
     print(f'dictionary ready: {db_path}')
+    print(f'reverse index ready: {reverse_path}')
     print('Data: Wiktionary via kaikki.org/wiktextract, CC BY-SA 4.0 - keep the attribution.')
 
 

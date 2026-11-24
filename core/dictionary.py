@@ -80,3 +80,67 @@ class KaikkiDictionary:
         return {'pos': row['pos'],
                 'glosses': json.loads(row['glosses'])[:MAX_GLOSSES],
                 'translations': translations[:MAX_TRANSLATIONS]}
+
+
+# Edition whose headwords translate INTO a given UI locale; used by the
+# reverse index. The Thai edition is not part of the dictionary pipeline,
+# so thai lookups fall back to transliteration upstream.
+TARGET_EDITION = {'en': 'eng', 'de': 'deu', 'ru': 'rus'}
+
+
+class ReverseDictionaryIndex:
+    """(edition, locale, translation term) -> headword, built once from the
+    dictionary database.
+
+    Plugs single-word data gaps in the forward direction: the English
+    edition carries no ru translations for the pronoun "I", but the Russian
+    edition's "я" entry translates back to "I", so a missed source word can
+    still resolve through its translations.
+    """
+
+    def __init__(self, path):
+        self._db = sqlite3.connect(f'file:{path}?mode=ro', uri=True,
+                                   check_same_thread=False)
+
+    def lookup(self, target_locale, term):
+        """Headword whose translations into ``target_locale`` contain
+        ``term`` (case-insensitive); None when the index has no match or
+        the locale's edition was not built."""
+        edition = TARGET_EDITION.get(target_locale)
+        if edition is None:
+            return None
+        row = self._db.execute(
+            'SELECT word FROM reverse WHERE edition=? AND locale=? AND '
+            'term=? ORDER BY word LIMIT 1',
+            (edition, target_locale, term.strip().casefold())).fetchone()
+        return row[0] if row else None
+
+
+def build_reverse_index(db_path, reverse_path):
+    """Derive the reverse index table from a built dictionary database.
+
+    One row per (edition, locale, translation term): the kaikki entry whose
+    translations into ``locale`` contain ``term`` maps to its headword.
+    """
+    source = sqlite3.connect(f'file:{db_path}?mode=ro', uri=True)
+    target = sqlite3.connect(str(reverse_path))
+    target.execute('CREATE TABLE IF NOT EXISTS reverse (edition TEXT, '
+                   'locale TEXT, term TEXT, word TEXT, '
+                   'PRIMARY KEY (edition, locale, term, word))')
+    batch = []
+    for source_code, word, translations_json in source.execute(
+            'SELECT source, word, translations FROM entries'):
+        for locale, terms in json.loads(translations_json).items():
+            for term in terms:
+                batch.append((source_code, locale,
+                              term.strip().casefold(), word))
+        if len(batch) >= 50_000:
+            target.executemany('INSERT OR IGNORE INTO reverse VALUES '
+                               '(?, ?, ?, ?)', batch)
+            batch.clear()
+    if batch:
+        target.executemany('INSERT OR IGNORE INTO reverse VALUES '
+                           '(?, ?, ?, ?)', batch)
+    target.commit()
+    target.close()
+    source.close()

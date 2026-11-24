@@ -48,7 +48,7 @@ SYMBOL_SYSTEM_SUBTITLE = 'subtitle'
 
 # The translation provider rate-limits by IP: coalesce rapid word clicks and
 # radio switches into a single request for the last selection.
-TRANSLATE_DEBOUNCE_MS = 400
+TRANSLATE_DEBOUNCE_MS = 300
 
 # Word details stay hidden until a word from the list is selected.
 DETAIL_WIDGET_NAMES = ('selectedWordLabel', 'selectedPosChip', 'selectedWordCountLabel',
