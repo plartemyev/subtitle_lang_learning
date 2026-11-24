@@ -101,6 +101,7 @@ class PhraseView(QtWidgets.QWidget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         metrics = self._font_metrics()
         ink = self.palette().color(self.palette().ColorRole.WindowText)
+        dark = grammar.is_dark_palette(self.palette())
         bold_font = self.font()
         bold_font.setBold(True)
         for index, token in enumerate(self._tokens):
@@ -110,10 +111,12 @@ class PhraseView(QtWidgets.QWidget):
             baseline = line_top + self.SYMBOL_ZONE + metrics.ascent()
             if index == self._focus_index:
                 self._paint_focus_ring(painter, QRectF(x - 1, line_top + 1, width + 2,
-                                                       self._line_height - 2))
+                                                       self._line_height - 2), dark)
             if token.category is not Category.UNMARKED:
-                grammar.draw_symbol(painter, x + width / 2, line_top + 2, token.category)
-            color = grammar.WORD_COLORS[token.category] if token.category is not Category.UNMARKED else ink
+                grammar.draw_symbol(painter, x + width / 2, line_top + 2, token.category,
+                                    dark=dark)
+            color = grammar.word_color(token.category, dark) \
+                if token.category is not Category.UNMARKED else ink
             underline_style, underline_width = grammar.UNDERLINES[token.category]
             if token.selected:
                 highlight = QColor(color)
@@ -175,9 +178,9 @@ class PhraseView(QtWidgets.QWidget):
         painter.drawPath(path)
 
     @staticmethod
-    def _paint_focus_ring(painter, rect: QRectF):
+    def _paint_focus_ring(painter, rect: QRectF, dark: bool):
         pen = QPen(painter.pen())
-        pen.setColor(QColor('#93c5fd'))
+        pen.setColor(QColor('#93c5fd' if dark else '#2563eb'))
         pen.setWidthF(1.5)
         pen.setStyle(QtCore.Qt.PenStyle.DashLine)
         painter.setPen(pen)
@@ -255,7 +258,8 @@ class PosChip(QtWidgets.QWidget):
             return
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        color = grammar.SYMBOL_COLORS[self._category]
+        dark = grammar.is_dark_palette(self.palette())
+        color = grammar.symbol_color(self._category, dark)
         border = QColor(color)
         border.setAlpha(90)
         background = QColor(color)
@@ -264,9 +268,10 @@ class PosChip(QtWidgets.QWidget):
         painter.setBrush(background)
         painter.drawRoundedRect(QRectF(0.5, 0.5, self.width() - 1, self.height() - 1), 5, 5)
         symbol = grammar.SYMBOL_SIZES[self._category]
-        grammar.draw_symbol(painter, 9 + symbol / 2, (self.height() - symbol) / 2, self._category)
+        grammar.draw_symbol(painter, 9 + symbol / 2, (self.height() - symbol) / 2,
+                            self._category, dark=dark)
         metrics = QFontMetrics(self.font())
-        text_color = grammar.WORD_COLORS[self._category]
+        text_color = grammar.word_color(self._category, dark)
         painter.setPen(text_color)
         baseline = (self.height() + metrics.ascent() - metrics.descent()) / 2
         painter.setFont(self.font())

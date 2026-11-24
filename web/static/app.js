@@ -286,10 +286,16 @@ function tokenTip(word, entry, language, phrase) {
   if (category === grammar.Category.UNMARKED) return null;
   const posName = i18n.tr('pos_name_' + grammar.messageSuffix(category));
   const selected = isTokenSelected(word, entry);
-  const nodes = [document.createElement('b'), document.createElement('br'),
-                 document.createTextNode(i18n.tr('token_lemma_line',
-                                                 {lemma: word.lemma, pos: posName}))];
-  nodes[0].textContent = word.text;
+  const header = document.createElement('b');
+  header.textContent = word.text;
+  const nodes = [header];
+  if (word.full_form) {
+    const full = document.createElement('b');
+    full.textContent = '(' + word.full_form + ')';
+    nodes.push(document.createTextNode(' '), full);
+  }
+  nodes.push(document.createElement('br'),
+    ...i18n.trNodes('token_lemma_line', {lemma: word.lemma, pos: posName}, ['lemma']));
   const morphology = grammar.morphologyLine(word.morph, i18n.tr);
   if (morphology) {
     nodes.push(document.createElement('br'), document.createTextNode(morphology));
@@ -321,8 +327,8 @@ function appendTranslationLines(nodes, word, language, phrase) {
   if (terms.length) {
     const ordered = contextualTerms(terms, payload ? payload.translation : null);
     nodes.push(document.createElement('br'),
-               document.createTextNode(i18n.tr('token_dictionary_line',
-                                               {translations: ordered.join(', ')})));
+      ...i18n.trNodes('token_dictionary_line',
+                      {translations: ordered.join(', ')}, ['translations']));
   } else if (aligned) {
     nodes.push(document.createElement('br'),
                document.createTextNode(i18n.tr('token_translation_line',

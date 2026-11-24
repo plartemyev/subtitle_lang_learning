@@ -9,7 +9,6 @@ keeping this server free of display text.
 import logging
 import os
 import tempfile
-from pathlib import Path
 from typing import Callable
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
@@ -18,14 +17,13 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from core import analyzer
+from core import analyzer, paths
 from core.controller import AppController
 from core.dictionary import KaikkiDictionary, ReverseDictionaryIndex
 from core.languages import DEFAULT_LANGUAGE_CODE, LANGUAGES
 from core.literal import LiteralDictionary
 from core.opensubtitles import OpenSubtitlesClient
-from core.translation import (FallbackProvider, LocalLlamaProvider,
-                              OllamaProvider, TranslationCache, cache_key)
+from core.translation import (TranslationCache, cache_key, provider_from_env)
 from ui import i18n
 from web.serializers import analysis_to_dict, phrase_translation_to_dict
 
@@ -38,15 +36,31 @@ STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
 # and tools/prepare_hymt15.py - see README. The model engines are a remote
 # OpenAI-compatible server (OLLAMA_* variables from the gitignored .env)
 # with a local HY-MT1.5-1.8B llama.cpp fallback.
-DATA_DIR = Path(os.environ.get(
-    'SUBTITLE_LEARNING_DATA_DIR',
-    Path(__file__).resolve().parent.parent / 'data'))
+DATA_DIR = paths.data_dir()
 DICTIONARY_DB_PATH = DATA_DIR / 'dictionary' / 'kaikki.sqlite'
 DICTIONARY_REVERSE_PATH = DATA_DIR / 'dictionary' / 'reverse.sqlite'
 TRANSLATION_CACHE_PATH = DATA_DIR / 'cache' / 'translations.sqlite'
 
 app = FastAPI(title='subtitle_lang_learning', docs_url=None, redoc_url=None, openapi_url=None)
 app.add_middleware(GZipMiddleware)
+
+
+@app.middleware('http')
+async def cache_headers(request, call_next):
+    """SPA shell and static assets cache for ten minutes, API answers never.
+
+    Poor-connection visitors reload at zero round trips within the TTL; a
+    deploy lands at most ten minutes late for them (assets fetched together
+    also expire together, so stale script pairs do not occur). API answers
+    carry no-store explicitly: no validators to revalidate with, and no
+    intermediary may cache localized results.
+    """
+    response = await call_next(request)
+    if request.url.path.startswith('/api'):
+        response.headers['Cache-Control'] = 'no-store'
+    else:
+        response.headers['Cache-Control'] = 'max-age=600'
+    return response
 
 
 def get_subtitles_client_factory() -> Callable[[], OpenSubtitlesClient]:
@@ -66,14 +80,7 @@ def get_translation_provider():
     global _provider
     if _provider is not None:
         return _provider
-    providers = []
-    remote = OllamaProvider.from_env()
-    if remote is not None:
-        providers.append(remote)
-    local = LocalLlamaProvider.from_env(DATA_DIR)
-    if local is not None:
-        providers.append(local)
-    _provider = FallbackProvider(providers) if providers else None
+    _provider = provider_from_env(DATA_DIR)
     return _provider
 
 

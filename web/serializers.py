@@ -39,7 +39,8 @@ def analysis_to_dict(result: AnalysisResult) -> dict:
 
 def word_to_dict(token) -> dict:
     return {'text': token.text, 'lemma': token.lemma, 'pos': token.pos,
-            'morph': token.morph, 'start': token.start, 'end': token.end}
+            'morph': token.morph, 'full_form': token.full_form,
+            'start': token.start, 'end': token.end}
 
 
 def phrase_translation_to_dict(translation) -> dict:
@@ -49,12 +50,4 @@ def phrase_translation_to_dict(translation) -> dict:
     the aligned translation from the same model pass; translation/score are
     null when attention was not confident enough for that token.
     """
-    return {
-        'source_text': translation.source_text,
-        'translation': translation.target_text,
-        'words': [{
-            'text': word.text, 'lemma': word.lemma, 'pos': word.pos,
-            'start': word.start, 'end': word.end, 'morph': word.morph,
-            'translation': word.translation, 'score': word.score,
-        } for word in translation.words],
-    }
+    return translation.to_payload()

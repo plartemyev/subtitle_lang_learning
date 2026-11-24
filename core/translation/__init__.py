@@ -17,3 +17,18 @@ from core.translation.chain import FallbackProvider
 from core.translation.local_hymt import LocalLlamaProvider
 from core.translation.models import PhraseTranslation, WordTranslation
 from core.translation.remote import OllamaProvider
+
+
+def provider_from_env(data_dir):
+    """Engine chain from the environment, shared by the web backend and the
+    Qt frontend: the remote OpenAI-compatible server first (OLLAMA_*
+    variables), the local HY-MT1.5 fallback second; None when no engine is
+    configured."""
+    providers = []
+    remote = OllamaProvider.from_env()
+    if remote is not None:
+        providers.append(remote)
+    local = LocalLlamaProvider.from_env(data_dir)
+    if local is not None:
+        providers.append(local)
+    return FallbackProvider(providers) if providers else None

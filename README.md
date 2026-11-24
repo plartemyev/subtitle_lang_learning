@@ -36,7 +36,12 @@ Selecting a word shows its context phrase annotated with pedagogical grammar sym
 classical Montessori shapes): every word carries its part-of-speech symbol, color and
 underline style. Hover (or arrow-key to) any word for a lemma tooltip; hover the part-of-speech
 chips for plain-language explanations. Articles are told apart from other determiners
-per language (`core.languages`).
+per language (`core.languages`). The tooltip carries the bold lemma, the token's
+morphology, bold Wiktionary translations into the interface language plus a sense gloss;
+contraction tokens spell their full form out next to the shorthand (`'s (is)`,
+`'d (had)`, `n't (not)`), derived from the spaCy lemma + morphology of the very token,
+with no per-contraction word lists (`core.full_forms`). The colors adapt to the
+system theme (readability verified against the default light and dark palettes).
 The `Symbols` menu chooses whose Montessori tradition paints the icons -
 the interface language's (the student's) or the subtitle language's. The systems differ only
 where the traditions genuinely differ (interjection: diamond vs exclamation keyhole,
@@ -55,6 +60,11 @@ one-to-one. The whole stack ships as one container:
 
     docker compose up --build --detach
     # then open http://127.0.0.1:8000
+
+The SPA shell and its static assets are served with `Cache-Control:
+max-age=600` - repeat visits cost zero round trips (friendly to lossy
+high-latency links), and a deploy reaches everyone within ten minutes
+without a hard refresh. API answers are `no-store`.
 
 Without Docker: `poetry install --with web` and run
 `poetry run python -m uvicorn web.app:app --host 0.0.0.0 --port 8000`.
@@ -83,25 +93,29 @@ Phrase translation runs through a fallback chain of model engines. The
 primary one is a remote OpenAI-compatible server - Ollama or llama.cpp
 serving a large multilingual model (the reference deployment:
 Qwen3.6-35B) - configured with `OLLAMA_BASE_URL`, `OLLAMA_MODEL` and
-`OLLAMA_API_KEY` read from the gitignored `.env`; thinking mode is
-explicitly disabled and the collapsed prompt protocol follows the
-benchmark in docs/offline-translation-research.md. The offline fallback
-is Tencent HY-MT1.5-1.8B (Q4_K_M GGUF, ~1.1 GB) under a local llama.cpp
-subprocess, prepared once by `tools/prepare_hymt15.py`. Switching is
-probe-driven: the remote's cached state is checked first, then a 1 s
-connect probe and a slot-availability probe run - a busy server is
-skipped for 10 s, an unreachable one for 10 minutes, and any successful
-call clears the state. Between the cached states the chain falls to the
-local model, and to 503 `translation_unavailable` when nothing answers;
-per-word tooltips are dictionary-based and unaffected. Phrase
-translation calls are cached in an sqlite LRU cache (~2 GiB budget,
-counter based).
+`OLLAMA_API_KEY` read from the gitignored `.env` (the Qt desktop frontend
+loads that file itself at startup, compose reads it for the web stack);
+thinking mode is explicitly disabled and the collapsed prompt protocol
+follows the benchmark in docs/offline-translation-research.md. The
+offline fallback is Tencent HY-MT1.5-1.8B (Q4_K_M GGUF, ~1.1 GB) under a
+local llama.cpp subprocess, prepared once by `tools/prepare_hymt15.py`.
+Switching is probe-driven: the remote's cached state is checked first,
+then a 1 s connect probe and a slot-availability probe run - a busy
+server is skipped for 10 s, an unreachable one for 10 minutes, and any
+successful call clears the state. Between the cached states the chain
+falls to the local model, and to 503 `translation_unavailable` (or the
+same localized line in the desktop view) when nothing answers; per-word
+tooltips are dictionary-based and unaffected. Phrase translation calls
+are cached in an sqlite LRU cache (~2 GiB budget, counter based).
 
-Besides the model line the UI renders an instant word-by-word dictionary
-view (the "literal" column of the benchmark): longest-match idiom sweep,
+The web UI and the Qt desktop UI both ship this local-translation view;
+the desktop one is built from native widgets only (no web engine, no
+HTML/CSS) and translation is enabled out of the box with the local
+engines in whole-phrase mode. Both frontends debounce phrase translation
+at 300 ms and render the instant word-by-word dictionary view (the
+"literal" column of the benchmark) alongside: longest-match idiom sweep,
 surface/lemma/POS dictionary picks, a reverse index and transliteration
-fallback - see docs/offline-translation-research.md. Both frontends
-debounce phrase translation at 300 ms.
+fallback - see docs/offline-translation-research.md.
 
 Everything lives outside the repository in the data directory (`data/`
 by default, override with `SUBTITLE_LEARNING_DATA_DIR`):
@@ -144,7 +158,10 @@ ARCHITECTURE
 All application logic is UI-agnostic and lives in the `core/` package, which must never
 import a UI framework (`PyQt6` or any other). Frontends live on their own:
 
-* `main.py` + `ui/qt/` - PyQt6 desktop frontend (the graphical application);
+* `main.py` + `ui/qt/` - PyQt6 desktop frontend (the graphical application), with the
+  local-translation view rendered by native widgets and wired to the same engine
+  chain, dictionary and translation cache as the web backend (`ui.qt.local_translation`);
+* `cli.py` - terminal frontend, same analysis pipeline without any GUI;
 * `cli.py` - terminal frontend, same analysis pipeline without any GUI;
 * `web/` + `web/static/` - FastAPI backend and the browser single-page UI;
   analysis results are serialized to JSON (`web/serializers.py`), UI catalogs
@@ -155,8 +172,10 @@ import a UI framework (`PyQt6` or any other). Frontends live on their own:
   codes; `en` is the reference locale and every locale ships a complete catalog;
 * `core/` - languages registry (neutral ISO-like codes `eng`/`deu`/`rus`), subtitle
   analyzer, OpenSubtitles.org client, translation helpers (the Google Translate URL
-  builder, the offline NLLB/CTranslate2 provider with attention word alignment in
-  `core/translation/`, the Wiktionary dictionary in `core/dictionary.py`) and
+  builder, the offline engine chain in `core/translation/`, the Wiktionary
+  dictionary in `core/dictionary.py` - POS matching is UPOS-mapped with
+  AUX→VERB/SCONJ→CCONJ siblings so auxiliary `do` never resolves through an
+  unrelated noun row) and
   `AppController` orchestrating it all. User-facing events are emitted as structured messages
   (code + params) and rendered by the frontend, keeping the core free of display
   text - that is the groundwork for localization and additional UI targets.
@@ -175,6 +194,26 @@ Run the checks (catalog completeness, plural rules, Qt retranslation) with:
     poetry run python3 -m unittest discover tests
 
 (the catalog tests need `msgfmt` from the gettext tools; Qt tests run offscreen).
+
+GUI visual verification renders the real main window on Qt's offscreen
+platform - no display server needed - under the default light palette and
+the standard dark Fusion palette, and saves composited screenshots of every
+screen (word list, details + phrase + local translation, a token tooltip,
+both menus, source and translation tabs) into `tmp/screenshots/`:
+
+    poetry run python tools/visual_check.py {light,dark} [--locale ru]
+
+QWebEngineView is stubbed by the tool (it core-dumps offscreen), so the
+online tab captures show an empty native pane; everything this repository
+paints itself is fully rendered.
+
+The web frontend has the counterpart `tools/web_check.py`: playwright
+(system package) drives `/usr/bin/chromium` against a running backend,
+uploads a sample, selects words, hovers a contraction token and reports the
+translation view state plus any console errors - the SPA degrades silently
+on API failures, so the error count is the signal:
+
+    python3 tools/web_check.py --url http://127.0.0.1:8000
 
 REQUIREMENTS
 -------------

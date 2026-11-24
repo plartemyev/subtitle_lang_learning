@@ -7,7 +7,8 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from core.analyzer import analyze_subtitles, parse_raw, sanitize_phrase_text
+from core.analyzer import (analyze_subtitles, parse_raw, sanitize_phrase_text,
+                           tokenize_phrase)
 
 
 class SanitizeTextTest(unittest.TestCase):
@@ -35,6 +36,21 @@ class WrappedWordEntryTest(unittest.TestCase):
         # the hyphen used to derail the tagger into a garbage NUM reading
         self.assertEqual(entry.pos, 'VERB')
         self.assertEqual(entry.context_phrase.words[-1].text, 'know')
+
+
+class FullFormAnnotationTest(unittest.TestCase):
+    def test_contraction_tokens_carry_derived_full_forms(self):
+        phrase = tokenize_phrase("It's fine, don't worry.", 'eng')
+        forms = {word.text: word.full_form for word in phrase}
+        self.assertEqual(forms["'s"], 'is')
+        self.assertEqual(forms["n't"], 'not')
+
+    def test_plain_tokens_and_possessives_have_no_full_form(self):
+        phrase = tokenize_phrase("The rug's color is fine.", 'eng')
+        forms = {word.text: word.full_form for word in phrase}
+        self.assertEqual(forms['The'], '')
+        self.assertEqual(forms["'s"], '')  # possessive marker, not a contraction
+        self.assertEqual(forms['is'], '')
 
 
 if __name__ == '__main__':

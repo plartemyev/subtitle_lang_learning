@@ -12,6 +12,7 @@ import spacy
 import srt
 from chardet.universaldetector import UniversalDetector
 
+from core.full_forms import full_form
 from core.languages import Language, resolve_language
 from core.models import AnalysisResult, AnnotatedPhrase, AnnotatedWord, WordEntry
 
@@ -50,6 +51,8 @@ def _annotate_words(doc) -> list:
     """Result of the single spaCy pass over a phrase, kept for UI rendering and word lookups."""
     return [AnnotatedWord(text=token.text, lemma=normalize_lemma(token), pos=token.pos_,
                           morph=str(token.morph),
+                          full_form=full_form(token.text, normalize_lemma(token),
+                                              str(token.morph)),
                           start=token.idx, end=token.idx + len(token.text))
             for token in doc if not token.is_space]
 

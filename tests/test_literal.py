@@ -30,8 +30,9 @@ class FakeReverse:
     def __init__(self, mapping):
         self.mapping = mapping
 
-    def lookup(self, target_locale, term):
-        return self.mapping.get((target_locale, term.strip().casefold()))
+    def lookup(self, source_code, target_locale, term):
+        return self.mapping.get((source_code, target_locale,
+                                 term.strip().casefold()))
 
 
 def words(*tokens):
@@ -70,7 +71,7 @@ class LiteralDictionaryTests(unittest.TestCase):
                 'well': [{'pos': 'intj', 'translations': ['ну']},
                          {'pos': 'adj', 'translations': ['здоро́вый']}],
             }),
-            FakeReverse({('ru', 'i'): 'я'}))
+            FakeReverse({('eng', 'ru', 'i'): 'я'}))
 
     def translate(self, tokens, source='eng', target='ru'):
         return self.dictionary.translate(' '.join(t['text'] for t in tokens),

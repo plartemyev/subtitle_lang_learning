@@ -17,6 +17,9 @@ class AnnotatedWord:
     # Universal Dependencies features string, e.g. 'Number=Sing|Person=3|Tense=Pres';
     # empty for tokens without morphology (punctuation, uninflected words).
     morph: str = ''
+    # Expanded surface form of a contracted token ('s -> is) derived from the
+    # lemma + morphology above; empty for non-contractions.
+    full_form: str = ''
 
 
 @dataclass

@@ -18,11 +18,12 @@ from PyQt6.QtCore import QDir, QUrl
 from PyQt6.QtGui import (QAction, QActionGroup, QBrush, QColor, QFont, QStandardItem,
                          QStandardItemModel)
 
-from core import translate
+from core import paths, translate
 from core.controller import AppController, UserMessage
 from core.languages import LANGUAGES
 from ui import i18n
 from ui.qt import grammar
+from ui.qt.local_translation import TranslationRequest, TranslationServices
 from ui.qt.phrase_view import PosChip, TokenView
 
 logger = logging.getLogger(__name__)
@@ -54,6 +55,9 @@ TRANSLATE_DEBOUNCE_MS = 300
 DETAIL_WIDGET_NAMES = ('selectedWordLabel', 'selectedPosChip', 'selectedWordCountLabel',
                        'selectedWordSubline', 'detailsDivider', 'contextLabel',
                        'phraseView', 'legendLabel', 'legendHint')
+# The local translation block stays hidden until the first phrase request.
+LOCAL_WIDGET_NAMES = ('localTranslationLabel', 'localTranslationText',
+                      'localLiteralLabel', 'localLiteralText')
 
 
 def _app_settings() -> QtCore.QSettings:
@@ -78,6 +82,9 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.setupUi(self)
         self.controller = controller if controller is not None else AppController(warning_callback=self.showWarning)
         self.selected_word = ''
+        self.services = TranslationServices(paths.data_dir())
+        self._request_id = 0  # sequence guard: only the newest request renders
+        self._pending_requests = []  # keep runnables alive while the pool runs them
         if language_code is None:
             # Manual override wins, then the system locale; i18n.setup()
             # validates both and falls back to the default locale.
@@ -96,17 +103,22 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.onlineSearchTitle.editingFinished.connect(self.loadSubtitlesFromInternet)
         self.ui.onlineSearchBtn.clicked.connect(self.loadSubtitlesFromInternet)
         self.ui.subtitlesLanguageSelect.currentIndexChanged.connect(self._subtitle_language_changed)
-        self.ui.translationTabWidget.tabBarClicked.connect(self.translationTabClicked)
+        self.ui.translationTabWidget.currentChanged.connect(self._translation_tab_changed)
         self._translate_timer = QtCore.QTimer(self)
         self._translate_timer.setSingleShot(True)
         self._translate_timer.timeout.connect(self._translate_current_selection)
         self._style_word_details()
-        for widget_name in DETAIL_WIDGET_NAMES:
+        for widget_name in DETAIL_WIDGET_NAMES + LOCAL_WIDGET_NAMES:
             getattr(self.ui, widget_name).setVisible(False)
         self._retranslate_ui()
         # after _retranslate_ui: in subtitle mode the system resolves through
         # the language selector, which is only populated by now
         self._apply_symbol_system()
+        # translation ships enabled with the local engines in phrase mode;
+        # the .ui file carries those defaults, this applies the enabled state
+        self.ui.translationTabWidget.setCurrentIndex(
+            self.ui.translationTabWidget.indexOf(self.ui.translateLocallyTab))
+        self.translationOptionsChanged()
         self.show()
 
     def _build_language_menu(self):
@@ -194,8 +206,12 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.contextLabel.setText(i18n.tr('context_label'))
         self.ui.legendLabel.setText(i18n.tr('legend_in_phrase'))
         self.ui.legendHint.setText(i18n.tr('legend_hint'))
+        self.ui.localTranslationLabel.setText(i18n.tr('translation_label'))
+        self.ui.localLiteralLabel.setText(i18n.tr('translation_literal_label'))
         self._populate_language_select()
         self._render_word_meta()
+        # the translation target follows the UI locale: refetch under the new one
+        self._schedule_translation()
 
     def _set_tab_text(self, tab_widget: QtWidgets.QTabWidget, widget_name: str, message_code: str):
         for index in range(tab_widget.count()):
@@ -238,7 +254,7 @@ class MainWindow(QtWidgets.QMainWindow):
     def wordInAListSelected(self, index: PyQt6.QtCore.QModelIndex):
         self.selected_word = index.data()
         self._render_word_meta()
-        self._schedule_online_translation()
+        self._schedule_translation()
 
     def _render_word_meta(self):
         if not self.selected_word:
@@ -280,13 +296,18 @@ class MainWindow(QtWidgets.QMainWindow):
         subline_font.setPointSizeF(max(subline_font.pointSizeF() - 1, 7))
         self.ui.selectedWordSubline.setFont(subline_font)
 
-        for label in (self.ui.contextLabel, self.ui.legendLabel):
+        for label in (self.ui.contextLabel, self.ui.legendLabel,
+                      self.ui.localTranslationLabel, self.ui.localLiteralLabel):
             small_font = label.font()
             small_font.setPointSizeF(max(small_font.pointSizeF() - 2, 7))
             small_font.setCapitalization(QFont.Capitalization.SmallCaps)
             small_font.setBold(True)
             small_font.setLetterSpacing(QFont.SpacingType.PercentageSpacing, 106)
             label.setFont(small_font)
+
+        translation_font = self.ui.localTranslationText.font()
+        translation_font.setPointSizeF(translation_font.pointSizeF() + 1)
+        self.ui.localTranslationText.setFont(translation_font)
 
         hint_font = self.ui.legendHint.font()
         hint_font.setPointSizeF(max(hint_font.pointSizeF() - 1, 7))
@@ -333,14 +354,40 @@ class MainWindow(QtWidgets.QMainWindow):
         if suffix is None:
             return ''
         pos_name = i18n.tr('pos_name_' + suffix)
-        tooltip = (f'<b>{html.escape(word.text)}</b><br>'
-                   + i18n.tr('token_lemma_line', lemma=html.escape(word.lemma), pos=pos_name))
+        header = f'<b>{html.escape(word.text)}</b>'
+        if word.full_form:
+            header += f' <b>({html.escape(word.full_form)})</b>'
+        lemma_line = i18n.tr('token_lemma_line',
+                             lemma=f'<b>{html.escape(word.lemma)}</b>', pos=pos_name)
+        tooltip = f'{header}<br>{lemma_line}'
         morphology = grammar.morphology_line(word.morph, i18n.tr)
         if morphology:
             tooltip += f'<br>{html.escape(morphology)}'
+        tooltip += self._dictionary_tooltip_lines(word)
         if self._is_selected_token(word, entry):
             tooltip += f'<br>{entry.count}\u00d7'
         return tooltip
+
+    def _dictionary_tooltip_lines(self, word) -> str:
+        """Bold Wiktionary translations plus the first sense gloss, both into
+        the active UI locale; empty when the dictionary is not prepared."""
+        dictionary = self.services.dictionary
+        if dictionary is None:
+            return ''
+        result = dictionary.lookup(self.currentLanguageCode(), i18n.active_locale,
+                                   word.text, word.lemma, word.pos)
+        terms, gloss = [], ''
+        for entry in result['entries']:
+            terms.extend(entry['translations'])
+            if not gloss and entry['glosses']:
+                gloss = entry['glosses'][0]
+        lines = ''
+        if terms:
+            translations = f"<b>{html.escape(', '.join(terms))}</b>"
+            lines += '<br>' + i18n.tr('token_dictionary_line', translations=translations)
+        if gloss:
+            lines += '<br>' + i18n.tr('token_gloss_line', gloss=html.escape(gloss))
+        return lines
 
     @staticmethod
     def _is_selected_token(word, entry) -> bool:
@@ -378,6 +425,9 @@ class MainWindow(QtWidgets.QMainWindow):
                 hue_value = color_interpolator(entry.count)
             colored_brush = QBrush(QColor().fromHsv(hue_value, 70, 255))
             item.setBackground(colored_brush)
+            # the heat background is always bright: pin dark text so the list
+            # stays readable under both the light and the dark system theme
+            item.setForeground(QBrush(QColor('#1c1c1c')))
             words_list_model.appendRow(item)
 
     def loadSubtitlesFromFile(self):
@@ -407,7 +457,7 @@ class MainWindow(QtWidgets.QMainWindow):
             return entry.context_phrase.text
         return ''
 
-    def _schedule_online_translation(self):
+    def _schedule_translation(self):
         """Restart the debounce so only the last selection gets translated."""
         if not self.ui.translateCheckBox.isChecked():
             return
@@ -418,8 +468,44 @@ class MainWindow(QtWidgets.QMainWindow):
             text = self.selected_word
         else:
             text = self._selected_phrase()
-        if text:
+        if not text:
+            return
+        if self.ui.translationTabWidget.currentWidget() is self.ui.translateLocallyTab:
+            self._translate_locally(text)
+        else:
             self.onlineTranslate(text)
+
+    def _translate_locally(self, text: str):
+        """Dispatch one phrase through the literal view and the engine chain."""
+        self._request_id += 1
+        request = TranslationRequest(self._request_id, self.services, text,
+                                     self.currentLanguageCode(), i18n.active_locale)
+        request.signals.literal_ready.connect(self._literal_ready)
+        request.signals.translation_ready.connect(self._local_translation_ready)
+        self._pending_requests.append(request)
+        for widget_name in LOCAL_WIDGET_NAMES:
+            getattr(self.ui, widget_name).setVisible(True)
+        self.ui.localTranslationText.setText('\u2026')
+        QtCore.QThreadPool.globalInstance().start(request)
+
+    def _literal_ready(self, request_id: int, gloss: str):
+        if request_id != self._request_id:
+            return
+        has_gloss = bool(gloss)
+        self.ui.localLiteralLabel.setVisible(has_gloss)
+        self.ui.localLiteralText.setVisible(has_gloss)
+        self.ui.localLiteralText.setText(gloss)
+
+    def _local_translation_ready(self, request_id: int, payload):
+        # the final signal of every request: release the runnable reference
+        self._pending_requests = [pending for pending in self._pending_requests
+                                  if pending.request_id != request_id]
+        if request_id != self._request_id:
+            return
+        if payload is None:
+            self.ui.localTranslationText.setText(i18n.tr('translation_unavailable'))
+            return
+        self.ui.localTranslationText.setText(payload['translation'])
 
     def translationOptionsChanged(self):
         if self.ui.translateCheckBox.isChecked():
@@ -427,15 +513,19 @@ class MainWindow(QtWidgets.QMainWindow):
             self.ui.webEngineView.setEnabled(True)
             self.ui.translateSingleWordRbtn.setEnabled(True)
             self.ui.translatePhraseRbtn.setEnabled(True)
-            self._schedule_online_translation()
+            self._schedule_translation()
         else:
             self._translate_timer.stop()
+            self._request_id += 1  # in-flight results of the stale state are dropped
             self.ui.webEngineView.setUrl(QtCore.QUrl("about:blank"))
             self.ui.webEngineView.setEnabled(False)
             self.ui.translationTabWidget.setEnabled(False)
             self.ui.translateSingleWordRbtn.setEnabled(False)
             self.ui.translatePhraseRbtn.setEnabled(False)
+            for widget_name in LOCAL_WIDGET_NAMES:
+                getattr(self.ui, widget_name).setVisible(False)
 
-    def translationTabClicked(self):
-        current_tab = self.ui.translationTabWidget.currentWidget().objectName()
+    def _translation_tab_changed(self, index: int):
+        current_tab = self.ui.translationTabWidget.widget(index).objectName()
         logger.info(f'Tab {current_tab} is active')
+        self._schedule_translation()

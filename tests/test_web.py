@@ -23,6 +23,17 @@ class StaticFrontendTest(unittest.TestCase):
     def test_health_reports_ok(self):
         self.assertEqual(client.get('/api/health').json(), {'status': 'ok'})
 
+    def test_static_assets_cache_for_ten_minutes_api_never(self):
+        # poor-connection visitors reload at zero round trips within the TTL;
+        # API answers must never be cached (localized results, no validators)
+        for path in ('/', '/static/app.js', '/static/i18n.js'):
+            response = client.get(path)
+            self.assertEqual(response.headers.get('cache-control'), 'max-age=600', path)
+        for path in ('/api/health', '/api/languages',
+                     '/api/dictionary/lookup?language=eng&target=en&word=family'):
+            response = client.get(path)
+            self.assertEqual(response.headers.get('cache-control'), 'no-store', path)
+
 
 class LanguagesApiTest(unittest.TestCase):
     def test_lists_supported_subtitle_languages(self):
@@ -76,6 +87,16 @@ class AnalyzeFileApiTest(unittest.TestCase):
         self.assertEqual(phrase['text'], 'To be, or not to be.')
         self.assertIn('To', [word['text'] for word in phrase['words']])
         self.assertTrue(all('lemma' in word for word in phrase['words']))
+
+    def test_phrase_words_carry_full_forms_of_contractions(self):
+        content = ("1\n00:00:01,000 --> 00:00:02,000\n"
+                   "It's fine, don't worry.\n\n").encode()
+        analysis = self.upload(content).json()
+        words = analysis['phrases'][0]['words']
+        forms = {word['text']: word['full_form'] for word in words}
+        self.assertEqual(forms["'s"], 'is')
+        self.assertEqual(forms["n't"], 'not')
+        self.assertEqual(forms['fine'], '')
 
     def test_context_phrase_is_deduplicated_across_words(self):
         analysis = self.upload(SAMPLE_SRT.encode()).json()

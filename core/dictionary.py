@@ -9,6 +9,7 @@ returns no entries.
 """
 import json
 import sqlite3
+import threading
 
 MAX_ENTRIES = 2
 MAX_GLOSSES = 2
@@ -23,6 +24,12 @@ WIKT_POS_TO_UPOS = {
     'article': 'DET', 'particle': 'PART',
 }
 
+# Analyzer UPOS values that should also match dictionary rows of the sibling
+# POS: spaCy files auxiliary verbs (do, will, have) under AUX and subordinating
+# conjunctions (if, because, dass) under SCONJ, while Wiktionary files them
+# under plain verb/conjunction rows - in every edition.
+UPOS_MATCH_EQUIVALENTS = {'AUX': 'VERB', 'SCONJ': 'CCONJ'}
+
 
 class KaikkiDictionary:
     """Read-only lookup over the built sqlite database."""
@@ -31,6 +38,10 @@ class KaikkiDictionary:
         self._db = sqlite3.connect(f'file:{db_path}?mode=ro', uri=True,
                                    check_same_thread=False)
         self._db.row_factory = sqlite3.Row
+        # one shared connection serves the web threadpool and the Qt worker
+        # threads; sqlite3 serializes single calls, multi-call sequences
+        # (execute + row reads) need our own guard (see TranslationCache)
+        self._lock = threading.Lock()
 
     def lookup(self, source_code, target_locale, word, lemma='', pos=''):
         """Dictionary entries for one token: surface form first, then lemma.
@@ -39,10 +50,15 @@ class KaikkiDictionary:
         rows - inflected forms usually have their own Wiktionary row with just
         a relational gloss, and spaCy tags pronouns Wiktionary calls
         determiners, so the preference applies within the headword too, not
-        only across headwords. POS-matching rows are still preferred inside
+        only across headwords. POS-matching rows (UPOS-mapped, with the
+        :data:`UPOS_MATCH_EQUIVALENTS` siblings) are still preferred inside
         each preference tier; a headword wins over the next one only when it
         has something to serve.
         """
+        with self._lock:
+            return self._lookup(source_code, target_locale, word, lemma, pos)
+
+    def _lookup(self, source_code, target_locale, word, lemma='', pos=''):
         plain = None  # first gloss-only result, served when nothing richer exists
 
         def entry(row):
@@ -52,19 +68,24 @@ class KaikkiDictionary:
             return [row for row in rows_ if json.loads(row['translations'])
                     .get(target_locale)]
 
+        # spaCy auxiliaries must not resolve through unrelated POS rows that
+        # merely sort first: an AUX 'do' matches the verb rows (translations
+        # ли/делать), never the noun row (вечеринка)
+        wanted = {pos, UPOS_MATCH_EQUIVALENTS.get(pos, pos)}
         for headword in dict.fromkeys([word.strip().lower(), lemma.strip().lower()]):
             if not headword:
                 continue
             rows = self._db.execute(
                 'SELECT pos, glosses, translations FROM entries '
-                'WHERE source = ? AND word = ? ORDER BY pos',
+                'WHERE source = ? AND word = ? ORDER BY pos COLLATE NOCASE',
                 (source_code, headword)).fetchall()
             if not rows:
                 continue
-            # wiktextract keeps some raw POS codes ('intj') the UPOS mapping
-            # does not cover; match the analyzer's tag case-insensitively
+            # rows store mapped UPOS values plus raw codes the mapping does
+            # not cover ('abbrev'); mapped matching keeps both case-insensitive
             matching = [row for row in rows
-                        if row['pos'].casefold() == pos.casefold()] if pos else []
+                        if WIKT_POS_TO_UPOS.get(row['pos'].lower(),
+                                                row['pos'].upper()) in wanted] if pos else []
             for tier in (matching, rows):
                 rich = [entry(row) for row in rich_rows(tier)[:MAX_ENTRIES]]
                 if rich:
@@ -86,6 +107,9 @@ class KaikkiDictionary:
 # reverse index. The Thai edition is not part of the dictionary pipeline,
 # so thai lookups fall back to transliteration upstream.
 TARGET_EDITION = {'en': 'eng', 'de': 'deu', 'ru': 'rus'}
+# The same mapping in reverse: canonical language code -> UI locale of the
+# source side in reverse-index queries.
+EDITION_LOCALES = {'eng': 'en', 'deu': 'de', 'rus': 'ru'}
 
 
 class ReverseDictionaryIndex:
@@ -95,24 +119,28 @@ class ReverseDictionaryIndex:
     Plugs single-word data gaps in the forward direction: the English
     edition carries no ru translations for the pronoun "I", but the Russian
     edition's "я" entry translates back to "I", so a missed source word can
-    still resolve through its translations.
+    still resolve through its translations. The term is matched against the
+    source language's locale column of the target edition.
     """
 
     def __init__(self, path):
         self._db = sqlite3.connect(f'file:{path}?mode=ro', uri=True,
                                    check_same_thread=False)
+        self._lock = threading.Lock()  # same shared-connection guard as KaikkiDictionary
 
-    def lookup(self, target_locale, term):
-        """Headword whose translations into ``target_locale`` contain
-        ``term`` (case-insensitive); None when the index has no match or
-        the locale's edition was not built."""
+    def lookup(self, source_code, target_locale, term):
+        """Headword of the ``target_locale`` edition whose translations into
+        the source language contain ``term`` (case-insensitive); None when
+        the index has no match or the target edition was not built."""
         edition = TARGET_EDITION.get(target_locale)
-        if edition is None:
+        source_locale = EDITION_LOCALES.get(source_code)
+        if edition is None or source_locale is None:
             return None
-        row = self._db.execute(
-            'SELECT word FROM reverse WHERE edition=? AND locale=? AND '
-            'term=? ORDER BY word LIMIT 1',
-            (edition, target_locale, term.strip().casefold())).fetchone()
+        with self._lock:
+            row = self._db.execute(
+                'SELECT word FROM reverse WHERE edition=? AND locale=? AND '
+                'term=? ORDER BY length(word), word LIMIT 1',
+                (edition, source_locale, term.strip().casefold())).fetchone()
         return row[0] if row else None
 
 

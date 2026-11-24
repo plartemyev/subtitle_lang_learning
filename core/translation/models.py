@@ -31,3 +31,15 @@ class PhraseTranslation:
     source_text: str
     target_text: str
     words: list = field(default_factory=list)  # list[WordTranslation]
+
+    def to_payload(self) -> dict:
+        """JSON-friendly dict (translation-cache and serializer shape)."""
+        return {
+            'source_text': self.source_text,
+            'translation': self.target_text,
+            'words': [{
+                'text': word.text, 'lemma': word.lemma, 'pos': word.pos,
+                'start': word.start, 'end': word.end, 'morph': word.morph,
+                'translation': word.translation, 'score': word.score,
+            } for word in self.words],
+        }

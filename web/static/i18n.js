@@ -68,6 +68,37 @@ export function tr(code, params) {
   return interpolate(value, params);
 }
 
+/* Rich lookup: the localized template split around its {placeholder}s into
+ * DOM nodes, with the interpolations named in boldKeys wrapped in <b> (the
+ * tooltip emphasis Qt renders via rich text). Text nodes only - no HTML
+ * parsing, values stay escaped by construction. */
+export function trNodes(code, params, boldKeys) {
+  const value = lookup(code);
+  if (value === null || Array.isArray(value)) return [document.createTextNode(code)];
+  const nodes = [];
+  const pattern = /\{(\w+)\}/g;
+  const keys = boldKeys || [];
+  let cursor = 0;
+  let match;
+  while ((match = pattern.exec(value)) !== null) {
+    if (match.index > cursor) {
+      nodes.push(document.createTextNode(value.slice(cursor, match.index)));
+    }
+    const key = match[1];
+    const text = params && key in params ? String(params[key]) : match[0];
+    if (keys.includes(key)) {
+      const bold = document.createElement('b');
+      bold.textContent = text;
+      nodes.push(bold);
+    } else {
+      nodes.push(document.createTextNode(text));
+    }
+    cursor = match.index + match[0].length;
+  }
+  if (cursor < value.length) nodes.push(document.createTextNode(value.slice(cursor)));
+  return nodes;
+}
+
 /* Plural-aware lookup (ui.i18n.ntr): code -> array of plural forms. */
 export function ntr(code, n, params) {
   const value = lookup(code);

@@ -77,6 +77,57 @@ WORD_COLORS = {
     Category.UNMARKED: QColor('#18181b'),
 }
 
+# Lightened siblings for dark system themes (contrast on near-black windows):
+# every canonical hue swaps to its 300-level tailwind shade, the black nouns
+# to near-white, so both the symbols and the word text keep their contrast.
+SYMBOL_COLORS_DARK = {
+    Category.NOUN: QColor('#e4e4e7'),
+    Category.PROP_NOUN: QColor('#e4e4e7'),
+    Category.ARTICLE: QColor('#7dd3fc'),
+    Category.ADJECTIVE: QColor('#60a5fa'),
+    Category.VERB: QColor('#f87171'),
+    Category.AUXILIARY: QColor('#f87171'),
+    Category.PARTICLE: QColor('#f87171'),
+    Category.PREPOSITION: QColor('#4ade80'),
+    Category.PRONOUN: QColor('#c084fc'),
+    Category.ADVERB: QColor('#fb923c'),
+    Category.CONJUNCTION: QColor('#f472b6'),
+    Category.INTERJECTION: QColor('#facc15'),
+    Category.UNMARKED: QColor('#a1a1aa'),
+}
+
+WORD_COLORS_DARK = {
+    Category.NOUN: QColor('#e4e4e7'),
+    Category.PROP_NOUN: QColor('#e4e4e7'),
+    Category.ARTICLE: QColor('#7dd3fc'),
+    Category.ADJECTIVE: QColor('#93c5fd'),
+    Category.VERB: QColor('#fca5a5'),
+    Category.AUXILIARY: QColor('#fca5a5'),
+    Category.PARTICLE: QColor('#fca5a5'),
+    Category.PREPOSITION: QColor('#86efac'),
+    Category.PRONOUN: QColor('#d8b4fe'),
+    Category.ADVERB: QColor('#fdba74'),
+    Category.CONJUNCTION: QColor('#f9a8d4'),
+    Category.INTERJECTION: QColor('#fde047'),
+    Category.UNMARKED: QColor('#d4d4d8'),
+}
+
+
+def is_dark_palette(palette) -> bool:
+    """True when the widget palette paints a dark window background."""
+    window = palette.color(palette.ColorRole.Window)
+    return window.lightness() < 128
+
+
+def word_color(category: Category, dark: bool) -> QColor:
+    """Theme-resolved text color of a category."""
+    return WORD_COLORS_DARK[category] if dark else WORD_COLORS[category]
+
+
+def symbol_color(category: Category, dark: bool) -> QColor:
+    """Theme-resolved painted-symbol color of a category."""
+    return SYMBOL_COLORS_DARK[category] if dark else SYMBOL_COLORS[category]
+
 # One underline style per symbol family, with its pen width.
 UNDERLINES = {
     Category.NOUN: (Underline.SOLID, 2.0),
@@ -262,12 +313,13 @@ def tip_message_suffix(category: Category) -> str:
     return f'{suffix}_{variant}' if suffix and variant else suffix
 
 
-def draw_symbol(painter, center_x: float, top_y: float, category: Category):
+def draw_symbol(painter, center_x: float, top_y: float, category: Category,
+                dark: bool = False):
     """Paint the category symbol with its top edge at ``top_y``; centered on x."""
     size = SYMBOL_SIZES[category]
     if size <= 0:
         return
-    color = SYMBOL_COLORS[category]
+    color = symbol_color(category, dark)
     variant = variant_suffix(category)
     if category == Category.PREPOSITION:
         _draw_crescent(painter, center_x, top_y, size, color)

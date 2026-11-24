@@ -189,7 +189,8 @@ class LiteralDictionary:
         if translation is not None:
             return translation
         if self.reverse is not None:
-            matched = self.reverse.lookup(target_locale, word['text'])
+            matched = self.reverse.lookup(source_code, target_locale,
+                                          word['text'])
             if matched is not None:
                 return matched
         return transliterate(word['text'], target_locale)

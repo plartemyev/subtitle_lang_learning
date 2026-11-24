@@ -5,6 +5,7 @@ import sys
 
 from PyQt6 import QtWidgets
 
+from core.env import load_dotenv
 from ui.qt.main_window import MainWindow
 
 
@@ -21,6 +22,7 @@ def init_logging(level: int) -> None:
 
 def main() -> int:
     init_logging(logging.INFO)
+    load_dotenv()  # OLLAMA_*/LLAMA_* wiring for the engines (README)
     app = QtWidgets.QApplication(sys.argv)
     MainWindow()
     return app.exec()
