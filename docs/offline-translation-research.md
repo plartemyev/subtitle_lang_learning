@@ -140,6 +140,20 @@ terms respected).
    (e.g. rus-en: "Твою мать!" -> "your mother !"), not as a translation
    quality contender. Dictionary forms carry Wiktionary stress marks and
    stay uninflected, which is a feature for a student, noise for fluency.
+   Hardening after the first pass exposed a dictionary *build* bug: the
+   dumps carry several entries per (word, pos) and `INSERT OR IGNORE` was
+   first-writer-wins, freezing hollow rows - the pronoun "I" appeared in
+   the dump with 663 translations including Russian "я", but an earlier
+   abbreviation entry with an empty translation dict kept the slot. The
+   build now keeps the field-wise richer row of every conflicting pair and
+   the dictionary was rebuilt. The lookup matches POS case-insensitively
+   (wiktextract keeps raw codes like "intj", so "Well" used to fall through
+   to the adjective "здоровый"); the literal engine adds pymorphy3
+   normal-form candidates for Cyrillic words (вам -> вы -> "you",
+   нехорошо -> нехороший -> "not good"), prefers non-transliteration
+   translations (мужик -> "man", not "muzhik"), transliterates
+   case-preserving (Ч -> Ch), and keeps a reverse index for single-word
+   data gaps.
 7. **Fallback decision**: HY-MT1.5-1.8B (~3.9 s median, audited clean,
    Thai-capable, license workable in the end-user-download flow) is the
    accepted offline fallback for the production provider.

@@ -63,6 +63,23 @@ CREATE TABLE IF NOT EXISTS entries (
 CREATE INDEX IF NOT EXISTS entries_word ON entries(source, word);
 """
 
+# The dumps carry several entries per (word, pos) - e.g. the pronoun "I"
+# appears again as an abbreviation with no translations. First-writer-wins
+# used to leave such hollow rows in place forever; the merge keeps the
+# field-wise richer version of every conflicting pair instead.
+_INSERT_ENTRY_SQL = """
+INSERT INTO entries VALUES (?, ?, ?, ?, ?)
+ON CONFLICT(source, word, pos) DO UPDATE SET
+    glosses = CASE
+        WHEN json_array_length(excluded.glosses) >
+             json_array_length(entries.glosses)
+        THEN excluded.glosses ELSE entries.glosses END,
+    translations = CASE
+        WHEN (SELECT count(*) FROM json_each(excluded.translations)) >
+             (SELECT count(*) FROM json_each(entries.translations))
+        THEN excluded.translations ELSE entries.translations END
+"""
+
 
 def download_edition(url, filename, cache_dir):
     """Fetch the edition dump once into the project tmp cache."""
@@ -148,10 +165,10 @@ def build_language(source_code, db, cache_dir):
             buffer.append(row)
             kept += 1
             if len(buffer) >= FLUSH_EVERY_ENTRIES:
-                db.executemany('INSERT OR IGNORE INTO entries VALUES (?, ?, ?, ?, ?)', buffer)
+                db.executemany(_INSERT_ENTRY_SQL, buffer)
                 buffer.clear()
     if buffer:
-        db.executemany('INSERT OR IGNORE INTO entries VALUES (?, ?, ?, ?, ?)', buffer)
+        db.executemany(_INSERT_ENTRY_SQL, buffer)
         buffer.clear()
     db.commit()
     print(f'{source_code}: {lines} lines -> {kept} dictionary rows')

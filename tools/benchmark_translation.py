@@ -17,6 +17,7 @@ import argparse
 import json
 import logging
 import os
+import sqlite3
 import statistics
 import subprocess
 import sys
@@ -253,12 +254,25 @@ def _is_cyrillic(text):
                for ch in text)
 
 
+def _latinize_cyrillic(word):
+    """Cyrillic -> Latin, keeping the word's capitalization (Ч -> Ch)."""
+    out = []
+    for ch in word:
+        mapped = CYRILLIC_TO_LATIN.get(ch.lower())
+        if mapped is None:
+            out.append(ch)
+        elif ch.isupper():
+            out.append(mapped.capitalize())
+        else:
+            out.append(mapped)
+    return ''.join(out)
+
+
 def transliterate(word, target_locale):
     """Pure-algorithm script conversion for dictionary misses."""
     if target_locale in ('en', 'de'):
-        return ''.join(CYRILLIC_TO_LATIN.get(ch, ch) for ch in word)
-    latin = ''.join(CYRILLIC_TO_LATIN.get(ch, ch) for ch in word) \
-        if _is_cyrillic(word) else word
+        return _latinize_cyrillic(word)
+    latin = _latinize_cyrillic(word) if _is_cyrillic(word) else word
     if target_locale == 'ru':
         out, index = [], 0
         lowered = latin.lower()
@@ -296,12 +310,16 @@ def transliterate(word, target_locale):
 class LiteralDictionaryEngine:
     """Word-for-word dictionary glossing, no model at all.
 
-    Per token: dictionary lookup (surface form first, then lemma, entries
-    carrying target-locale translations preferred, POS-disambiguated inside
-    the preference tiers - exactly what KaikkiDictionary.lookup does);
-    tokens without a translation fall back to algorithmic transliteration.
-    Punctuation passes through; output is space-joined source-order word
-    glosses (also for Thai, where spaces mark the gloss boundaries).
+    Per token, in order: dictionary lookup of the surface form, the annotated
+    lemma and pymorphy3 normal forms (spaCy misses Russian case forms like
+    вам -> вы); among an entry's target translations prefer the first one
+    that is not just a transliteration of the source (мужик -> man, not
+    muzhik); a reverse index over the dictionary plugs single-word data gaps
+    (the English edition lacks ru translations for "I", the Russian edition's
+    "я" entry translates back to "I"); algorithmic transliteration is the
+    last resort. Punctuation passes through; output is space-joined
+    source-order word glosses (also for Thai, where spaces mark gloss
+    boundaries).
     """
 
     def __init__(self, key):
@@ -311,23 +329,117 @@ class LiteralDictionaryEngine:
     def translate(self, text, source_code, target_locale, words):
         start = time.perf_counter()
         dictionary = _shared_dictionary()
+        reverse = _shared_reverse_index()
         glosses = []
         for word in words:
             if word['pos'] == 'PUNCT':
                 glosses.append(word['text'])
                 continue
-            result = dictionary.lookup(source_code, target_locale,
-                                       word['text'], lemma=word['lemma'],
-                                       pos=word['pos'])
+            naive = transliterate(word['text'],
+                                  target_locale).strip().casefold()
             translation = None
-            for entry in result['entries']:
-                if entry['translations']:
-                    translation = entry['translations'][0]
+            candidates = dict.fromkeys([word['text'], word['lemma'],
+                                        *_lemma_candidates(word['text'])])
+            for candidate in candidates:
+                result = dictionary.lookup(source_code, target_locale,
+                                           candidate, lemma=candidate,
+                                           pos=word['pos'])
+                for entry in result['entries']:
+                    options = [term for term in entry['translations']
+                               if term.strip().casefold() != naive]
+                    if options:
+                        translation = options[0]
+                        break
+                if translation is not None:
                     break
             if translation is None:
-                translation = transliterate(word['text'], target_locale)
+                translation = (reverse.lookup(source_code, target_locale,
+                                              word['text'])
+                               or transliterate(word['text'], target_locale))
             glosses.append(translation)
         return ' '.join(glosses), (time.perf_counter() - start) * 1000
+
+
+_morph_analyzer = None
+
+
+def _lemma_candidates(word):
+    """Extra lookup candidates: pymorphy3 normal forms for Cyrillic words."""
+    global _morph_analyzer
+    if not _is_cyrillic(word):
+        return []
+    if _morph_analyzer is None:
+        try:
+            import pymorphy3
+            _morph_analyzer = pymorphy3.MorphAnalyzer()
+        except ImportError:
+            _morph_analyzer = False
+    if not _morph_analyzer:
+        return []
+    return list(dict.fromkeys(parse.normal_form
+                              for parse in _morph_analyzer.parse(word)[:4]))
+
+
+TARGET_EDITION = {'en': 'eng', 'de': 'deu', 'ru': 'rus', 'th': None}
+
+
+class ReverseDictionaryIndex:
+    """(edition, locale, translation term) -> headword, built once from the
+    kaikki database. For a missed source word it finds the target-language
+    headword whose translations contain that word."""
+
+    def __init__(self, path):
+        self._db = sqlite3.connect(str(path), check_same_thread=False)
+
+    def lookup(self, source_code, target_locale, term):
+        edition = TARGET_EDITION[target_locale]
+        if edition is None:
+            return None
+        row = self._db.execute(
+            'SELECT word FROM reverse WHERE edition=? AND locale=? AND '
+            'term=? ORDER BY word LIMIT 1',
+            (edition, target_locale, term.strip().casefold())).fetchone()
+        return row[0] if row else None
+
+
+_reverse_index_instance = None
+
+
+def _shared_reverse_index():
+    global _reverse_index_instance
+    if _reverse_index_instance is None:
+        path = RESULTS_DIR / 'reverse.sqlite'
+        if not path.exists():
+            _build_reverse_index(path)
+        _reverse_index_instance = ReverseDictionaryIndex(path)
+    return _reverse_index_instance
+
+
+def _build_reverse_index(path):
+    logger.info('building reverse translation index (one-time) ...')
+    source = sqlite3.connect(f'file:{DICTIONARY_DB}?mode=ro', uri=True)
+    target = sqlite3.connect(str(path))
+    target.execute('CREATE TABLE reverse (edition TEXT, locale TEXT, '
+                   'term TEXT, word TEXT, PRIMARY KEY (edition, locale, '
+                   'term, word))')
+    batch = []
+    for source_code, word, translations_json in source.execute(
+            'SELECT source, word, translations FROM entries'):
+        for locale, terms in json.loads(translations_json).items():
+            for term in terms:
+                batch.append((source_code, locale,
+                              term.strip().casefold(), word))
+        if len(batch) >= 50_000:
+            target.executemany('INSERT OR IGNORE INTO reverse VALUES '
+                               '(?, ?, ?, ?)', batch)
+            batch.clear()
+    if batch:
+        target.executemany('INSERT OR IGNORE INTO reverse VALUES '
+                           '(?, ?, ?, ?)', batch)
+    target.commit()
+    target.close()
+    source.close()
+    logger.info('reverse index ready: %s', path)
 
 
 class LlamaServerEngine:

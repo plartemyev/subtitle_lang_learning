@@ -61,7 +61,10 @@ class KaikkiDictionary:
                 (source_code, headword)).fetchall()
             if not rows:
                 continue
-            matching = [row for row in rows if row['pos'] == pos] if pos else []
+            # wiktextract keeps some raw POS codes ('intj') the UPOS mapping
+            # does not cover; match the analyzer's tag case-insensitively
+            matching = [row for row in rows
+                        if row['pos'].casefold() == pos.casefold()] if pos else []
             for tier in (matching, rows):
                 rich = [entry(row) for row in rich_rows(tier)[:MAX_ENTRIES]]
                 if rich:
