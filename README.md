@@ -4,7 +4,7 @@ Learning languages by watching movies without translation.
 This app was originally written as a helper tool to study English.
 I think it is more productive to glance at the list of words used in the movie beforehand
 and look at the translation of unfamiliar ones, instead of stopping in the middle to look up
-some word. App provides a list of unique words with they ubiquity and the context in a phrase.
+some word. App provides a list of unique words with their ubiquity and the context in a phrase.
 ![app_screenshot]
 
 LICENSE
@@ -19,7 +19,9 @@ This software is provided "AS-IS", without any guarantees. It should not do
 any harm to your system, but if it does, the author, GitHub, etc... cannot
 be held responsible. Use at your own risk. You have been warned.
 
-Icons were taken from [KDE/breeze-icons](https://github.com/KDE/breeze-icons)
+Icons were taken from [KDE/breeze-icons](https://github.com/KDE/breeze-icons).
+The application icon (`ui/qt/icon.svg`) is Breeze `application-x-srt`
+(LGPL-3.0-or-later, `COPYING-ICONS` in that repository).
 
 USAGE
 -----
@@ -27,7 +29,7 @@ Simply enter movie name or some TV series identifier, like `mash s11e06`. Or you
 a local file with subtitles in SRT format.
 Supported subtitle languages: English (`eng`), German (`deu`), Russian (`rus`) - select the
 language in the UI before loading, or pass `--language` to `cli.py`.
-Words are arranged by they frequency.
+Words are arranged by their frequency.
 Optionally, the selected word or its context phrase is looked up in the embedded
 Google Translate view; the provider's interface language and the translation
 target both follow the active interface language.
@@ -35,7 +37,8 @@ target both follow the active interface language.
 Selecting a word shows its context phrase annotated with pedagogical grammar symbols (the
 classical Montessori shapes): every word carries its part-of-speech symbol, color and
 underline style. Hover (or arrow-key to) any word for a lemma tooltip; hover the part-of-speech
-chips for plain-language explanations. Articles are told apart from other determiners
+chips for plain-language explanations. Clicking the context phrase copies its plain text
+(subtitle line breaks collapsed) to the clipboard. Articles are told apart from other determiners
 per language (`core.languages`). The tooltip carries the bold lemma, the token's
 morphology, bold Wiktionary translations into the interface language plus a sense gloss;
 contraction tokens spell their full form out next to the shorthand (`'s (is)`,
@@ -77,9 +80,12 @@ The API consumed by the page (handy for scripting):
   returns `{analysis, messages}` where `messages` carry the localizable
   event codes;
 * `POST /api/translate/phrase` - JSON body `{"text": ..., "language": ...,
-  "target": ...}`, returns `{translation, words, cached}` where `words`
-  carry one aligned translation per phrase token (null when not confident)
-  and `cached` marks sqlite LRU cache hits;
+  "target": ...}`, returns `{source_text, translation, words, cached}`; the
+  current engines carry no word alignment (`words` is empty, per-word
+  tooltips are dictionary-based) and `cached` marks sqlite LRU cache hits;
+* `POST /api/translate/literal` - the same JSON body, returns `{literal}`,
+  the instant word-by-word dictionary gloss of the phrase; 503
+  `translation_unavailable` without the dictionary;
 * `GET /api/dictionary/lookup?language=&target=&word=&lemma=&pos=` -
   Wiktionary glosses and translations for one word. The per-word tooltip
   translation is dictionary-first: surface-form entries are served only
@@ -100,7 +106,7 @@ follows the benchmark in docs/offline-translation-research.md. The
 offline fallback is Tencent HY-MT1.5-1.8B (Q4_K_M GGUF, ~1.1 GB) under a
 local llama.cpp subprocess, prepared once by `tools/prepare_hymt15.py`.
 Switching is probe-driven: the remote's cached state is checked first,
-then a 1 s connect probe and a slot-availability probe run - a busy
+then a 0.5 s connect probe and a 0.5 s slot-availability probe run - a busy
 server is skipped for 10 s, an unreachable one for 10 minutes, and any
 successful call clears the state. Between the cached states the chain
 falls to the local model, and to 503 `translation_unavailable` (or the
@@ -161,7 +167,6 @@ import a UI framework (`PyQt6` or any other). Frontends live on their own:
 * `main.py` + `ui/qt/` - PyQt6 desktop frontend (the graphical application), with the
   local-translation view rendered by native widgets and wired to the same engine
   chain, dictionary and translation cache as the web backend (`ui.qt.local_translation`);
-* `cli.py` - terminal frontend, same analysis pipeline without any GUI;
 * `cli.py` - terminal frontend, same analysis pipeline without any GUI;
 * `web/` + `web/static/` - FastAPI backend and the browser single-page UI;
   analysis results are serialized to JSON (`web/serializers.py`), UI catalogs

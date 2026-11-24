@@ -47,7 +47,7 @@ def phrase_translation_to_dict(translation) -> dict:
     """Serialize a core.translation.PhraseTranslation for the web frontend.
 
     Words keep their analysis identity (text/lemma/pos/morph/offsets) plus
-    the aligned translation from the same model pass; translation/score are
-    null when attention was not confident enough for that token.
+    the aligned translation and score, null where the engine did not align
+    the token; ``words`` is empty from the current engines, which do not.
     """
     return translation.to_payload()

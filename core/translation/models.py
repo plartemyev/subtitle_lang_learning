@@ -8,12 +8,12 @@ from dataclasses import dataclass, field
 
 @dataclass
 class WordTranslation:
-    """Source token with its aligned translation from the same model pass.
+    """Source token with its per-word translation from an aligning engine.
 
     Carries the same identity fields as ``core.models.AnnotatedWord`` (text,
     lemma, pos, start, end, morph). ``translation``/``score`` are None when
-    the cross-attention was not confident enough for this token - the UI can
-    fall back to the dictionary gloss in that case.
+    the engine did not align this token. Neither current engine aligns (the
+    attention-based NLLB engine was replaced): both ship ``words=[]``.
     """
     text: str
     lemma: str
@@ -27,7 +27,8 @@ class WordTranslation:
 
 @dataclass
 class PhraseTranslation:
-    """Whole-phrase translation with per-word alignments."""
+    """Whole-phrase translation, with per-word alignments only from an
+    aligning engine: ``words`` is empty from the current ones."""
     source_text: str
     target_text: str
     words: list = field(default_factory=list)  # list[WordTranslation]

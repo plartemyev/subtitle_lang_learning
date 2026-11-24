@@ -190,11 +190,13 @@ def analyze_online(query: OnlineQuery,
 def translate_phrase(query: PhraseQuery,
                      provider=Depends(get_translation_provider),
                      cache=Depends(get_translation_cache)):
-    """Offline whole-phrase translation with per-word alignments.
+    """Offline whole-phrase translation through the engine chain.
 
-    Results are served from the sqlite LRU cache when seen before; words
-    without confident attention carry translation=null so the frontend can
-    fall back to the dictionary lookup.
+    Results are served from the sqlite LRU cache when seen before; without
+    an engine, or when it fails, the answer is 503 with the structured
+    `translation_unavailable` message. The current engines return no
+    per-word alignment (``words`` is empty): the frontend glosses single
+    words through /api/dictionary/lookup.
     """
     if query.language not in LANGUAGES:
         raise HTTPException(status_code=400, detail={'error': 'unsupported language'})
