@@ -18,9 +18,9 @@ const state = {
 let warning = null;  // list of {code, params} core events or null
 let busy = false;
 
-/* Offline phrase translation (NLLB) + Wiktionary enrichment, lazily fetched
- * per phrase and per UI locale; the resolved payloads are what the tooltip
- * builders and the translation line read. */
+/* Offline phrase translation (remote or local model engine) + Wiktionary
+ * enrichment, lazily fetched per phrase and per UI locale; the resolved
+ * payloads are what the tooltip builders and the translation line read. */
 const phraseFetches = new Map();      // locale|language|text -> Promise<payload>
 const phrasePayloads = new Map();     // same key -> resolved payload
 const literalFetches = new Map();     // locale|language|text -> Promise<payload>
@@ -174,6 +174,11 @@ function hueFor(value, cap) {
   return Math.round(250 + ((clamped - 1) / span) * -250);
 }
 
+/* The desktop list paints hsv(hue, 70/255, 100%), which is hsl(hue, 100%, 86%). */
+function heatColor(value, cap) {
+  return 'hsl(' + hueFor(value, cap) + ', 100%, 86%)';
+}
+
 function populateWordsList() {
   els.wordsList.replaceChildren();
   els.wordsList.scrollTop = 0;
@@ -188,7 +193,7 @@ function populateWordsList() {
     item.tabIndex = 0;
     item.dataset.word = word;
     const value = entry.count > topCount / 5 ? cap : entry.count;
-    item.style.background = 'hsl(' + hueFor(value, cap) + ', 100%, 65%)';
+    item.style.background = heatColor(value, cap);
     item.addEventListener('click', () => selectWord(word));
     item.addEventListener('keydown', (event) => {
       if (event.key === 'Enter' || event.key === ' ') {
@@ -255,23 +260,22 @@ function renderDetails() {
   const language = currentLanguage();
   els.details.hidden = false;
   els.wordLabel.textContent = entry.word;
-  els.wordCount.textContent = entry.count + '\u00d7';
   const category = grammar.categoryFor(entry.pos, entry.word.toLowerCase(), language);
-  let subline = '';
+  let subline = entry.count + '\u00d7';
   if (category === grammar.Category.UNMARKED) {
     els.wordChip.hidden = true;
     if (entry.pos) {
-      subline = i18n.tr('pos_suffix', {pos: entry.pos.toLowerCase()}).replace(/^[, ]+/, '');
+      subline += ' \u00b7 ' + i18n.tr('pos_suffix', {pos: entry.pos.toLowerCase()}).replace(/^[, ]+/, '');
     }
   } else {
     els.wordChip.hidden = false;
     setChip(els.wordChip, category,
             i18n.tr('pos_name_' + grammar.messageSuffix(category)),
             i18n.tr('pos_tip_' + grammar.tipMessageSuffix(category)));
-    subline = entrySubline(entry, language);
+    const details = entrySubline(entry, language);
+    if (details) subline += ' \u00b7 ' + details;
   }
   els.wordSubline.textContent = subline;
-  els.wordSubline.hidden = !subline;
   renderPhrase(entry, language);
 }
 
@@ -281,11 +285,10 @@ function isTokenSelected(word, entry) {
   return word.lemma === entry.word || word.text.toLowerCase() === entry.word.toLowerCase();
 }
 
-function tokenTip(word, entry, language, phrase) {
+function tokenTip(word, language, phrase) {
   const category = grammar.categoryFor(word.pos, word.text.toLowerCase(), language);
   if (category === grammar.Category.UNMARKED) return null;
   const posName = i18n.tr('pos_name_' + grammar.messageSuffix(category));
-  const selected = isTokenSelected(word, entry);
   const header = document.createElement('b');
   header.textContent = word.text;
   const nodes = [header];
@@ -301,9 +304,6 @@ function tokenTip(word, entry, language, phrase) {
     nodes.push(document.createElement('br'), document.createTextNode(morphology));
   }
   appendTranslationLines(nodes, word, language, phrase);
-  if (selected) {
-    nodes.push(document.createElement('br'), document.createTextNode(entry.count + '\u00d7'));
-  }
   return nodes;
 }
 
@@ -377,8 +377,8 @@ function buildToken(word, category, entry, language, phrase) {
   label.textContent = word.text;
   token.append(symbol, label);
   if (isTokenSelected(word, entry)) token.classList.add('sel');
-  const tipNodes = tokenTip(word, entry, language, phrase);
-  if (tipNodes) tipBuilders.set(token, () => tokenTip(word, entry, language, phrase));
+  const tipNodes = tokenTip(word, language, phrase);
+  if (tipNodes) tipBuilders.set(token, () => tokenTip(word, language, phrase));
   return token;
 }
 
@@ -388,13 +388,22 @@ function renderPhrase(entry, language) {
   const phrase = entry.phrase === null || entry.phrase === undefined
     ? null : state.analysis.phrases[entry.phrase];
   if (phrase) {
-    for (const word of phrase.words) {
+    let group = null;
+    phrase.words.forEach((word, index) => {
       const category = grammar.categoryFor(word.pos, word.text.toLowerCase(), language);
-      els.phraseView.append(buildToken(word, category, entry, language, phrase));
+      // a token written tight against the previous one in the source ('ll, commas)
+      const attached = index > 0 && word.start === phrase.words[index - 1].end;
+      if (!group || !attached) {
+        group = document.createElement('span');
+        group.className = 'tok-grp';
+        if (index) els.phraseView.append(document.createTextNode(' '));
+        els.phraseView.append(group);
+      }
+      group.append(buildToken(word, category, entry, language, phrase));
       if (category !== grammar.Category.UNMARKED && !categories.includes(category)) {
         categories.push(category);
       }
-    }
+    });
   }
   rebuildLegend(categories);
 }
@@ -423,6 +432,48 @@ function onPhraseKeydown(event) {
     : Math.max(Math.min(index, tokens.length - 1) - 1, 0);
   tokens[next].focus();
   event.preventDefault();
+}
+
+/* ---------- phrase clipboard: click-to-copy and clean selection ---------- */
+
+/* The source text with whitespace runs (subtitle line breaks, spaces a
+ * sloppy drag picks up) collapsed and trimmed. */
+function phraseText(text) {
+  return text.replace(/\s+/g, ' ').trim();
+}
+
+/* Clipboard write for plain-HTTP origins too, where the async clipboard API
+ * is not exposed: a temporary textarea selection does there (and whenever
+ * the API refuses). */
+function copyText(text) {
+  const legacyCopy = () => {
+    const helper = document.createElement('textarea');
+    helper.value = text;
+    helper.style.cssText = 'position:fixed;opacity:0';
+    document.body.append(helper);
+    helper.select();
+    document.execCommand('copy');
+    helper.remove();
+  };
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).catch(legacyCopy);
+    return;
+  }
+  legacyCopy();
+}
+
+function onPhraseCopy(event) {
+  const selection = window.getSelection();
+  if (!els.phraseView.contains(selection.anchorNode)
+      || !els.phraseView.contains(selection.focusNode)) return;
+  event.clipboardData.setData('text/plain', phraseText(selection.toString()));
+  event.preventDefault();
+}
+
+function onPhraseClick() {
+  if (window.getSelection().toString()) return;  // a drag-select ended here
+  const phrase = selectedPhrase();
+  if (phrase) copyText(phraseText(phrase.text));
 }
 
 /* ---------- offline phrase translation + dictionary enrichment ---------- */
@@ -720,7 +771,6 @@ async function init() {
   els.details = el('details');
   els.wordLabel = el('selected-word-label');
   els.wordChip = el('selected-pos-chip');
-  els.wordCount = el('selected-word-count-label');
   els.wordSubline = el('selected-word-subline');
   els.contextLabel = el('context-label');
   els.phraseView = el('phrase-view');
@@ -748,6 +798,8 @@ async function init() {
   els.symbolSystem.addEventListener('change', onSymbolSystemChanged);
   els.uiLanguage.addEventListener('change', () => applyLocale(els.uiLanguage.value));
   els.phraseView.addEventListener('keydown', onPhraseKeydown);
+  els.phraseView.addEventListener('copy', onPhraseCopy);
+  els.phraseView.addEventListener('click', onPhraseClick);
   initTooltipLayer();
 
   state.languages = await (await fetch('/api/languages')).json();
