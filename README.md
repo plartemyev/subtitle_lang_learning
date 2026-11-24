@@ -87,11 +87,15 @@ Qwen3.6-35B) - configured with `OLLAMA_BASE_URL`, `OLLAMA_MODEL` and
 explicitly disabled and the collapsed prompt protocol follows the
 benchmark in docs/offline-translation-research.md. The offline fallback
 is Tencent HY-MT1.5-1.8B (Q4_K_M GGUF, ~1.1 GB) under a local llama.cpp
-subprocess, prepared once by `tools/prepare_hymt15.py`. When the remote
-server is unreachable the chain falls to the local model, then to 503
-`translation_unavailable`; per-word tooltips are dictionary-based and
-unaffected. Phrase translation calls are cached in an sqlite LRU cache
-(~2 GiB budget, counter based).
+subprocess, prepared once by `tools/prepare_hymt15.py`. Switching is
+probe-driven: the remote's cached state is checked first, then a 1 s
+connect probe and a slot-availability probe run - a busy server is
+skipped for 10 s, an unreachable one for 10 minutes, and any successful
+call clears the state. Between the cached states the chain falls to the
+local model, and to 503 `translation_unavailable` when nothing answers;
+per-word tooltips are dictionary-based and unaffected. Phrase
+translation calls are cached in an sqlite LRU cache (~2 GiB budget,
+counter based).
 
 Besides the model line the UI renders an instant word-by-word dictionary
 view (the "literal" column of the benchmark): longest-match idiom sweep,
