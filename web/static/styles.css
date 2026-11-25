@@ -59,6 +59,17 @@ button:disabled { opacity: 0.5; cursor: default; }
   font-size: 13px;
   color: var(--ink-2);
 }
+#about-link {
+  display: inline-flex;
+  align-items: center;
+  color: var(--ink-2);
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 2px 4px;
+}
+@media (hover: hover) {
+  #about-link:hover { background: #f0f0f2; }
+}
 
 /* ---------- source tabs ---------- */
 #source-tabs { display: flex; padding: 10px 12px 0; }
@@ -88,6 +99,13 @@ button:disabled { opacity: 0.5; cursor: default; }
   text-overflow: ellipsis;
   white-space: nowrap;
   min-height: 1em;
+}
+
+/* ---------- start-screen description (until subtitles are loaded) ---------- */
+#intro {
+  margin: 12px;
+  max-width: 60ch;
+  color: var(--ink-2);
 }
 
 /* ---------- status line (structured core events, busy spinner) ---------- */
@@ -355,6 +373,7 @@ button:disabled { opacity: 0.5; cursor: default; }
   .menu-label { display: none; flex: 1 1 100%; min-height: 48px; padding-bottom: 8px; }
   #menubar.settings-open .menu-label { display: flex; }
   #menubar select { min-height: 44px; }
+  #about-link { min-width: 44px; min-height: 44px; justify-content: center; }
   #list-toggle[aria-expanded="true"] .icon { transform: rotate(180deg); }
   .source-pane { flex-wrap: wrap; }  /* never wider than the viewport */
   #main-layout { display: flex; flex-direction: column; gap: 0; padding: 0; }

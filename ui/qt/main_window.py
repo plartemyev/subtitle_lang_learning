@@ -15,8 +15,8 @@ from typing import Callable
 import PyQt6.QtCore
 from PyQt6 import QtCore, QtWidgets, uic
 from PyQt6.QtCore import QDir, QUrl
-from PyQt6.QtGui import (QAction, QActionGroup, QBrush, QColor, QFont, QIcon, QPalette,
-                         QStandardItem, QStandardItemModel)
+from PyQt6.QtGui import (QAction, QActionGroup, QBrush, QColor, QDesktopServices, QFont, QIcon,
+                         QPalette, QStandardItem, QStandardItemModel)
 
 from core import paths, translate
 from core.controller import AppController, UserMessage
@@ -46,6 +46,8 @@ SETTINGS_ORGANIZATION = 'subtitle_lang_learning'
 SETTINGS_APPLICATION = 'gui'
 SETTINGS_LANGUAGE_KEY = 'ui_language'
 SETTINGS_SYMBOL_SYSTEM_KEY = 'symbol_system'
+# The About menu-bar item opens the project repository.
+REPOSITORY_URL = 'https://github.com/plartemyev/subtitle_lang_learning'
 # Whose Montessori tradition paints the symbols: the interface language's
 # (the student's) or the subtitle language's (the language being learned).
 SYMBOL_SYSTEM_UI = 'ui'
@@ -101,6 +103,8 @@ class MainWindow(QtWidgets.QMainWindow):
     def initUI(self):
         self._build_language_menu()
         self._build_symbol_system_menu()
+        self._about_action = self.menuBar().addAction(i18n.tr('button_about'))
+        self._about_action.triggered.connect(self._open_repository)
         self.ui.fileSelectBtn.clicked.connect(self.fileSelectionDialog)
         self.ui.translationOptionsGroup.buttonClicked.connect(self.translationOptionsChanged)
         self.ui.translateCheckBox.clicked.connect(self.translationOptionsChanged)
@@ -149,6 +153,9 @@ class MainWindow(QtWidgets.QMainWindow):
         i18n.setup(language_code)
         self._apply_symbol_system()
         self._retranslate_ui()
+
+    def _open_repository(self):
+        QDesktopServices.openUrl(QUrl(REPOSITORY_URL))
 
     def _build_symbol_system_menu(self):
         self._symbols_menu = self.menuBar().addMenu(i18n.tr('menu_symbols'))
@@ -205,6 +212,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self.ui.filePathInput.setPlaceholderText(i18n.tr('placeholder_subtitle_file'))
         self.ui.fileSelectBtn.setText(i18n.tr('button_select_srt'))
         self.ui.onlineSearchBtn.setText(i18n.tr('button_search'))
+        self.ui.introLabel.setText(i18n.tr('intro_text'))
+        self._about_action.setText(i18n.tr('button_about'))
         self.ui.translateCheckBox.setText(i18n.tr('checkbox_translate'))
         self.ui.translateSingleWordRbtn.setText(i18n.tr('radio_single_word'))
         self.ui.translatePhraseRbtn.setText(i18n.tr('radio_whole_phrase'))
@@ -294,7 +303,8 @@ class MainWindow(QtWidgets.QMainWindow):
         self._render_phrase(entry, language)
 
     def _style_word_details(self):
-        """Fonts and secondary colors for the details pane; the .ui file stays layout-only."""
+        """Fonts and secondary colors for the details pane and the start screen;
+        the .ui file stays layout-only."""
         word_font = self.ui.selectedWordLabel.font()
         word_font.setPointSizeF(word_font.pointSizeF() + 6)
         word_font.setBold(True)
@@ -329,7 +339,7 @@ class MainWindow(QtWidgets.QMainWindow):
         hint_palette = self.ui.legendHint.palette()
         hint_palette.setColor(QPalette.ColorRole.WindowText,
                               grammar.secondary_color(self.palette()))
-        for label in (self.ui.legendHint, self.ui.localLiteralText):
+        for label in (self.ui.legendHint, self.ui.localLiteralText, self.ui.introLabel):
             label.setPalette(hint_palette)
 
     def _occurrence_pos(self, entry) -> str:
@@ -445,6 +455,7 @@ class MainWindow(QtWidgets.QMainWindow):
         result = self.controller.current_result
         if result is None or not result.words:
             return
+        self.ui.introLabel.setVisible(False)  # the start-screen description has served its purpose
         top_word_prevalence = result.top_count
         color_interpolator = create_range_interpolator(1, int(round(top_word_prevalence / 5)), 250, 0)
         words_list_model = QStandardItemModel(self.ui.wordsListView)

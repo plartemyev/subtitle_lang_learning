@@ -99,6 +99,10 @@ msgstr "Select SRT file"
 msgid "button_search"
 msgstr "Search"
 
+#. Welcoming description on the start screen, shown until subtitles are loaded.
+msgid "intro_text"
+msgstr "Pick a movie or series in the language you’re learning, skim through its words sorted by frequency, check the frequent but unfamiliar ones with context and translation — then just enjoy the video."
+
 msgid "checkbox_translate"
 msgstr "Translate"
 
@@ -258,6 +262,10 @@ msgstr "Close"
 
 msgid "menu_settings"
 msgstr "Settings"
+
+#. Button linking to the project repository.
+msgid "button_about"
+msgstr "About"
 
 msgid "word_list"
 msgstr "Word list"

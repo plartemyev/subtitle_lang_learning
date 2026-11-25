@@ -61,6 +61,7 @@ const ICONS = {
   close: '<path d="M6 6l12 12M18 6L6 18"/>',
   settings: '<path d="M4 8h3.5M13 8h7M4 16h7M16 16h3.5"/><circle cx="10.5" cy="8" r="2.5"/>'
     + '<circle cx="13.5" cy="16" r="2.5"/>',
+  info: '<circle cx="12" cy="12" r="9"/><path d="M12 8.2h.01M12 11.5V16"/>',
 };
 
 function iconSvg(name) {
@@ -152,6 +153,9 @@ function retranslate() {
   els.phraseLiteralLabel.textContent = i18n.tr('translation_literal_label');
   els.symbolsMenuTitle.textContent = i18n.tr('menu_symbols');
   els.languageMenuTitle.textContent = i18n.tr('menu_language');
+  els.intro.textContent = i18n.tr('intro_text');
+  els.aboutLink.title = i18n.tr('button_about');
+  els.aboutLink.setAttribute('aria-label', i18n.tr('button_about'));
   for (const option of els.symbolSystem.options) {
     if (option.value === 'ui') option.textContent = i18n.tr('symbol_system_ui');
     if (option.value === 'subtitle') option.textContent = i18n.tr('symbol_system_subtitle');
@@ -816,6 +820,7 @@ function applyAnalysis(analysis) {
   dictionaryFetches.clear();
   dictionaryPayloads.clear();
   els.details.hidden = true;
+  els.intro.hidden = true;  // the start-screen description has served its purpose
   els.phraseTranslation.hidden = true;
   els.phraseLiteral.hidden = true;
   populateWordsList();
@@ -1051,6 +1056,8 @@ function wireShell() {
 
 async function init() {
   els.appTitle = el('app-title');
+  els.aboutLink = el('about-link');
+  els.intro = el('intro');
   els.symbolsMenuTitle = el('symbols-menu-title');
   els.languageMenuTitle = el('language-menu-title');
   els.symbolSystem = el('symbol-system');

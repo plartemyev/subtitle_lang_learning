@@ -91,6 +91,10 @@ msgstr "เลือกไฟล์ SRT"
 msgid "button_search"
 msgstr "ค้นหา"
 
+#. Welcoming description on the start screen, shown until subtitles are loaded.
+msgid "intro_text"
+msgstr "เลือกหนังหรือซีรีส์เป็นภาษาที่คุณกำลังเรียน กวาดตาดูคำที่ใช้ในเรื่องเรียงตามความถี่ ดูคำที่พบบ่อยแต่ยังไม่คุ้นให้ละเอียดพร้อมบริบทและคำแปล แล้วก็เพลิดเพลินกับการดูได้เลย"
+
 msgid "checkbox_translate"
 msgstr "แปลภาษา"
 
@@ -251,6 +255,10 @@ msgstr "ปิด"
 
 msgid "menu_settings"
 msgstr "การตั้งค่า"
+
+#. Button linking to the project repository.
+msgid "button_about"
+msgstr "เกี่ยวกับ"
 
 msgid "word_list"
 msgstr "รายการคำ"

@@ -77,6 +77,16 @@
      </widget>
     </item>
     <item>
+     <widget class="QLabel" name="introLabel">
+      <property name="wordWrap">
+       <bool>true</bool>
+      </property>
+      <property name="text">
+       <string/>
+      </property>
+     </widget>
+    </item>
+    <item>
      <layout class="QHBoxLayout" name="mainHorizontalLayout">
       <property name="sizeConstraint">
        <enum>QLayout::SetDefaultConstraint</enum>
