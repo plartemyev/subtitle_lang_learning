@@ -166,6 +166,26 @@ class DefaultModeTest(MainWindowTestBase):
         self.window._render_word_meta()
         self.assertEqual(self.window.ui.selectedWordSubline.text(), '2\u00d7 \u00b7 also verb (1\u00d7)')
 
+    def test_word_meta_chip_describes_the_context_occurrence(self):
+        # 'that' in the wild: DET dominates the aggregate, but the shown first
+        # occurrence is a conjunction - the chip follows the highlighted
+        # token, the aggregate counts move to the subline
+        self.window.services = FakeServices(dictionary=None)  # no real dictionary lookups
+        phrase = AnnotatedPhrase(text='Clean that up.', start_sec=0.0, end_sec=1.0, words=[
+            AnnotatedWord(text='Clean', lemma='clean', pos='VERB', start=0, end=5),
+            AnnotatedWord(text='that', lemma='that', pos='SCONJ', start=6, end=10),
+            AnnotatedWord(text='up', lemma='up', pos='ADP', start=11, end=13)])
+        entry = WordEntry(word='that', count=34, pos='DET',
+                          pos_counts={'DET': 25, 'SCONJ': 7, 'PRON': 2},
+                          occurrences={'SCONJ': [phrase]})
+        self.window.controller = types.SimpleNamespace(
+            current_result=AnalysisResult(language_code='eng', words={'that': entry}))
+        self.window.selected_word = 'that'
+        self.window._render_word_meta()
+        self.assertEqual(self.window.ui.selectedPosChip._label, 'conjunction')
+        self.assertEqual(self.window.ui.selectedWordSubline.text(),
+                         '34\u00d7 \u00b7 also adjective (25\u00d7), pronoun (2\u00d7)')
+
     def test_long_legend_wraps_instead_of_widening_the_window(self):
         self.window.services = FakeServices(dictionary=None)  # no real dictionary lookups
         tokens = [('Hey', 'INTJ'), ('but', 'CCONJ'), ('we', 'PRON'), ("'ll", 'AUX'),

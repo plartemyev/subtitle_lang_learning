@@ -260,10 +260,28 @@ function selectWord(word) {
 
 /* ---------- word details pane (port of _render_word_meta) ---------- */
 
-function entrySubline(entry, language) {
+function entryPhrase(entry) {
+  return entry.phrase === null || entry.phrase === undefined
+    ? null : state.analysis.phrases[entry.phrase];
+}
+
+/* Part of speech of the occurrence highlighted in the context phrase: the
+ * details chip describes this very usage, the aggregate counts move to the
+ * subline ('34× · также …'). */
+function occurrencePos(entry) {
+  const phrase = entryPhrase(entry);
+  if (phrase) {
+    for (const word of phrase.words) {
+      if (isTokenSelected(word, entry)) return word.pos;
+    }
+  }
+  return entry.pos;
+}
+
+function entrySubline(entry, language, chipPos) {
   const parts = [];
   const others = Object.entries(entry.pos_counts)
-    .filter(([pos]) => pos !== entry.pos)
+    .filter(([pos]) => pos !== chipPos)
     .sort((a, b) => b[1] - a[1]);
   if (others.length) {
     const items = others
@@ -307,19 +325,20 @@ function renderDetails() {
   const language = currentLanguage();
   els.details.hidden = false;
   els.wordLabel.textContent = entry.word;
-  const category = grammar.categoryFor(entry.pos, entry.word.toLowerCase(), language);
+  const pos = occurrencePos(entry);
+  const category = grammar.categoryFor(pos, entry.word.toLowerCase(), language);
   let subline = entry.count + '\u00d7';
   if (category === grammar.Category.UNMARKED) {
     els.wordChip.hidden = true;
-    if (entry.pos) {
-      subline += ' \u00b7 ' + i18n.tr('pos_suffix', {pos: entry.pos.toLowerCase()}).replace(/^[, ]+/, '');
+    if (pos) {
+      subline += ' \u00b7 ' + i18n.tr('pos_suffix', {pos: pos.toLowerCase()}).replace(/^[, ]+/, '');
     }
   } else {
     els.wordChip.hidden = false;
     setChip(els.wordChip, category,
             i18n.tr('pos_name_' + grammar.messageSuffix(category)),
             i18n.tr('pos_tip_' + grammar.tipMessageSuffix(category)));
-    const details = entrySubline(entry, language);
+    const details = entrySubline(entry, language, pos);
     if (details) subline += ' \u00b7 ' + details;
   }
   els.wordSubline.textContent = subline;
@@ -437,8 +456,7 @@ function buildToken(word, category, entry, language, phrase) {
 function renderPhrase(entry, language) {
   els.phraseView.replaceChildren();
   const categories = [];  // first-occurrence order, unmarked tokens skipped
-  const phrase = entry.phrase === null || entry.phrase === undefined
-    ? null : state.analysis.phrases[entry.phrase];
+  const phrase = entryPhrase(entry);
   if (phrase) {
     let group = null;
     phrase.words.forEach((word, index) => {
@@ -671,7 +689,7 @@ function phraseKey(phrase) {
 function fetchPhraseTranslation(phrase) {
   const key = phraseKey(phrase);
   if (!phraseFetches.has(key)) {
-    const request = fetch('/api/translate/phrase', {
+    const request = fetch('api/translate/phrase', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({text: phrase.text,
@@ -696,7 +714,7 @@ function fetchDictionaryEntry(word, language) {
   if (!dictionaryFetches.has(key)) {
     const query = new URLSearchParams({language: language.code, target: i18n.locale(),
                                        word: word.text, lemma: word.lemma, pos: word.pos});
-    const request = fetch('/api/dictionary/lookup?' + query)
+    const request = fetch('api/dictionary/lookup?' + query)
       .then(async (response) => {
         const payload = response.ok ? await response.json() : {entries: []};
         dictionaryPayloads.set(key, payload);
@@ -715,7 +733,7 @@ function fetchDictionaryEntry(word, language) {
 function fetchLiteralTranslation(phrase) {
   const key = phraseKey(phrase);
   if (!literalFetches.has(key)) {
-    const request = fetch('/api/translate/literal', {
+    const request = fetch('api/translate/literal', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({text: phrase.text,
@@ -812,7 +830,7 @@ async function loadOnline(event) {
   const query = els.searchTitle.value.trim();
   setBusy(true);
   try {
-    const response = await fetch('/api/analyze/online', {
+    const response = await fetch('api/analyze/online', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({query,
@@ -840,7 +858,7 @@ async function loadFile(file) {
     const form = new FormData();
     form.append('file', file);
     form.append('language', state.subtitleLanguage);
-    const response = await fetch('/api/analyze/file', {method: 'POST', body: form});
+    const response = await fetch('api/analyze/file', {method: 'POST', body: form});
     if (!response.ok) {
       const detail = await response.json().catch(() => null);
       warning = [detail && detail.detail && detail.detail.message
@@ -1118,7 +1136,7 @@ async function init() {
   initTooltipLayer();
   wireShell();
 
-  state.languages = await (await fetch('/api/languages')).json();
+  state.languages = await (await fetch('api/languages')).json();
   const stored = localStorage.getItem('ui_language');
   await applyLocale(stored && i18n.LOCALES.includes(stored)
     ? stored : i18n.detectLocale());

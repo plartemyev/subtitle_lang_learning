@@ -272,21 +272,22 @@ class MainWindow(QtWidgets.QMainWindow):
         if entry is None:
             return
         language = LANGUAGES[self.currentLanguageCode()]
-        category = grammar.category_for(entry.pos, entry.word, language)
+        occurrence_pos = self._occurrence_pos(entry)
+        category = grammar.category_for(occurrence_pos, entry.word, language)
         for widget_name in DETAIL_WIDGET_NAMES:
             getattr(self.ui, widget_name).setVisible(True)
         self.ui.selectedWordLabel.setText(entry.word)
         subline = f'{entry.count}\u00d7'
         if category is grammar.Category.UNMARKED:
             self.ui.selectedPosChip.setVisible(False)
-            if entry.pos:
-                subline += ' \u00b7 ' + i18n.tr('pos_suffix', pos=entry.pos.lower()).lstrip(', ')
+            if occurrence_pos:
+                subline += ' \u00b7 ' + i18n.tr('pos_suffix', pos=occurrence_pos.lower()).lstrip(', ')
         else:
             suffix = grammar.message_suffix(category)
             self.ui.selectedPosChip.set_data(category, i18n.tr('pos_name_' + suffix))
             self.ui.selectedPosChip.setToolTip(
                 i18n.tr('pos_tip_' + grammar.tip_message_suffix(category)))
-            details = self._entry_subline(entry, language)
+            details = self._entry_subline(entry, language, occurrence_pos)
             if details:
                 subline += ' \u00b7 ' + details
         self.ui.selectedWordSubline.setText(subline)
@@ -331,14 +332,25 @@ class MainWindow(QtWidgets.QMainWindow):
         for label in (self.ui.legendHint, self.ui.localLiteralText):
             label.setPalette(hint_palette)
 
-    def _entry_subline(self, entry, language) -> str:
+    def _occurrence_pos(self, entry) -> str:
+        """Part of speech of the occurrence highlighted in the context phrase:
+        the details chip describes this very usage, the aggregate counts stay
+        in the subline ('34× · также …')."""
+        phrase = entry.context_phrase
+        if phrase is not None:
+            for word in phrase.words:
+                if self._is_selected_token(word, entry):
+                    return word.pos
+        return entry.pos
+
+    def _entry_subline(self, entry, language, chip_pos) -> str:
         """'also a noun (2×)' line plus the possessive note, if any."""
         parts = []
-        others = sorted(((pos, count) for pos, count in entry.pos_counts.items()
-                         if pos != entry.pos), key=lambda item: item[1], reverse=True)
+        others = sorted(((upos, count) for upos, count in entry.pos_counts.items()
+                         if upos != chip_pos), key=lambda item: item[1], reverse=True)
         if others:
-            items = ', '.join(f'{self._pos_display(pos, entry.word, language)} ({count}\u00d7)'
-                              for pos, count in others)
+            items = ', '.join(f'{self._pos_display(upos, entry.word, language)} ({count}\u00d7)'
+                              for upos, count in others)
             parts.append(i18n.tr('pos_also_line', items=items))
         if entry.possessive_count:
             possessive = i18n.ntr('possessive_suffix', 'possessive_suffix_plural',
