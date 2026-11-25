@@ -234,6 +234,40 @@ msgstr "ในวลีนี้"
 msgid "legend_hint"
 msgstr "ชี้ที่คำใดก็ได้เพื่อดูรากศัพท์และไวยากรณ์ · คลิกที่วลีเพื่อคัดลอก"
 
+#. Touch devices have no hover: the hint under the context phrase there.
+msgid "legend_hint_touch"
+msgstr "แตะที่คำใดก็ได้เพื่อดูรากศัพท์และไวยากรณ์"
+
+#. Phone layout of the web frontend: bottom bar, list panel, collapsed header
+#. and source form, and the surfaces that replace the tooltips.
+msgid "button_copy_phrase"
+msgstr "คัดลอกวลี"
+
+msgid "phrase_copied"
+msgstr "คัดลอกแล้ว"
+
+msgid "button_close"
+msgstr "ปิด"
+
+msgid "menu_settings"
+msgstr "การตั้งค่า"
+
+msgid "word_list"
+msgstr "รายการคำ"
+
+#. Position of the selected word in the frequency list.
+msgid "word_position"
+msgstr "{current} จาก {total}"
+
+msgid "word_previous"
+msgstr "คำก่อนหน้า"
+
+msgid "word_next"
+msgstr "คำถัดไป"
+
+msgid "source_label"
+msgstr "แหล่งที่มาของคำบรรยาย"
+
 #. Universal Dependencies morphology values shown in word tooltips.
 msgid "morph_person_1"
 msgstr "บุรุษที่ 1"

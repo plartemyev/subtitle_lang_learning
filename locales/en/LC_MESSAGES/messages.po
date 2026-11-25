@@ -241,6 +241,40 @@ msgstr "In this phrase"
 msgid "legend_hint"
 msgstr "hover any word for its lemma and grammar · click the phrase to copy it"
 
+#. Touch devices have no hover: the hint under the context phrase there.
+msgid "legend_hint_touch"
+msgstr "tap any word for its lemma and grammar"
+
+#. Phone layout of the web frontend: bottom bar, list panel, collapsed header
+#. and source form, and the surfaces that replace the tooltips.
+msgid "button_copy_phrase"
+msgstr "Copy phrase"
+
+msgid "phrase_copied"
+msgstr "Copied"
+
+msgid "button_close"
+msgstr "Close"
+
+msgid "menu_settings"
+msgstr "Settings"
+
+msgid "word_list"
+msgstr "Word list"
+
+#. Position of the selected word in the frequency list.
+msgid "word_position"
+msgstr "{current} of {total}"
+
+msgid "word_previous"
+msgstr "Previous word"
+
+msgid "word_next"
+msgstr "Next word"
+
+msgid "source_label"
+msgstr "Subtitles source"
+
 #. Universal Dependencies morphology values shown in word tooltips.
 msgid "morph_person_1"
 msgstr "1st person"

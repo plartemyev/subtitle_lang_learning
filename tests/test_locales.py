@@ -95,6 +95,16 @@ EXPECTED_CODES = frozenset({
     'pos_also_line',
     'legend_in_phrase',
     'legend_hint',
+    'legend_hint_touch',
+    'button_copy_phrase',
+    'phrase_copied',
+    'button_close',
+    'menu_settings',
+    'word_list',
+    'word_position',
+    'word_previous',
+    'word_next',
+    'source_label',
     *_morph_message_codes(),
 })
 

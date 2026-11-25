@@ -38,8 +38,11 @@ Selecting a word shows its context phrase annotated with pedagogical grammar sym
 classical Montessori shapes): every word carries its part-of-speech symbol, color and
 underline style. Hover (or arrow-key to) any word for a lemma tooltip; hover the part-of-speech
 chips for plain-language explanations. Clicking the context phrase copies its plain text
-(subtitle line breaks collapsed) to the clipboard. Articles are told apart from other determiners
-per language (`core.languages`). The tooltip carries the bold lemma, the token's
+(subtitle line breaks collapsed) to the clipboard. A touch device has no hover: there tapping a
+word opens the same lines as a card under the phrase (tap the word again to close it), tapping a
+part-of-speech chip expands its explanation in place, and a button copies the phrase. Articles
+are told apart from other determiners per language (`core.languages`). The tooltip carries the
+bold lemma, the token's
 morphology, bold Wiktionary translations into the interface language plus a sense gloss;
 contraction tokens spell their full form out next to the shorthand (`'s (is)`,
 `'d (had)`, `n't (not)`), derived from the spaCy lemma + morphology of the very token,
@@ -72,6 +75,14 @@ without a hard refresh. API answers are `no-store`.
 Without Docker: `poetry install --with web` and run
 `poetry run python -m uvicorn web.app:app --host 0.0.0.0 --port 8000`.
 The page is plain HTML/JS/CSS from our own origin, no third-party scripts.
+
+At 720 px and below the page is a phone shell: the two header menus and the
+source form fold into single rows, the word details scroll on their own, and
+a bottom bar carries the word-list button beside previous/next for the
+selected word. The list opens upwards from that bar - it is the content until
+a word is picked - and folds back after a pick, so whatever a finger needs
+stays at the bottom of the screen.
+
 The API consumed by the page (handy for scripting):
 
 * `GET /api/health`, `GET /api/languages`, `GET /api/i18n/<locale>`;
@@ -219,6 +230,16 @@ translation view state plus any console errors - the SPA degrades silently
 on API failures, so the error count is the signal:
 
     python3 tools/web_check.py --url http://127.0.0.1:8000
+
+`--mobile` walks the same sample on fourteen phone profiles (the ten most
+common mobile viewports worldwide, two of them at both pixel ratios, plus the
+iPhone 17 sizes) with touch emulation and no mouse. It checks picking a word,
+the word card, a chip explanation, the copy confirmation, stepping and the
+list unfolded from the bottom bar, along with 44 px bar buttons and the
+absence of sideways overflow; `--device 360x780,390x844` picks profiles and
+the exit status is the number of problems:
+
+    python3 tools/web_check.py --url http://127.0.0.1:8000 --mobile
 
 REQUIREMENTS
 -------------

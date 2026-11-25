@@ -12,6 +12,7 @@
 <header id="menubar">
   <span id="app-title"></span>
   <span class="menu-spacer"></span>
+  <button id="settings-toggle" class="bar-button" type="button" data-icon="settings" aria-expanded="false"></button>
   <label class="menu-label">
     <span id="symbols-menu-title" class="menu-title"></span>
     <select id="symbol-system">
@@ -30,6 +31,13 @@
   </label>
 </header>
 
+<!-- phone layout only: the tabs and panes below fold into this row -->
+<button id="source-summary" type="button" aria-expanded="false" aria-controls="source-tabs">
+  <span id="source-caption" class="visually-hidden"></span>
+  <span id="source-name" class="source-name"></span>
+  <span id="source-language"></span>
+  <span class="icon" data-icon="chevron" aria-hidden="true"></span>
+</button>
 <nav id="source-tabs">
   <button id="tab-online" class="tab active" type="button"></button>
   <button id="tab-file" class="tab" type="button"></button>
@@ -51,16 +59,29 @@
 <div id="status-line" hidden></div>
 
 <main id="main-layout">
-  <ul id="words-list"></ul>
+  <div id="list-panel" hidden>
+    <ul id="words-list"></ul>
+  </div>
   <section id="details" hidden>
     <div class="word-header">
       <span id="selected-word-label"></span>
       <span id="selected-pos-chip" class="chip" hidden></span>
     </div>
     <div id="selected-word-subline"></div>
+    <p id="word-explain" class="explain" hidden></p>
     <hr class="details-divider">
-    <div id="context-label" class="caps-label"></div>
+    <div class="context-row">
+      <div id="context-label" class="caps-label"></div>
+      <button id="copy-phrase" type="button"><span id="copy-phrase-label" aria-live="polite"></span></button>
+    </div>
     <div id="phrase-view" tabindex="-1"></div>
+    <div id="word-card" hidden>
+      <div class="card-head">
+        <span id="card-title"></span>
+        <button id="card-close" class="bar-button" type="button" data-icon="close"></button>
+      </div>
+      <div id="card-body"></div>
+    </div>
     <div id="legend-hint"></div>
     <div id="phrase-translation" hidden>
       <span id="phrase-translation-label" class="caps-label"></span>
@@ -72,8 +93,18 @@
     </div>
     <div id="legend">
       <span id="legend-label" class="caps-label"></span>
+      <p id="legend-explain" class="explain" hidden></p>
     </div>
   </section>
+  <div id="dock" hidden>
+    <button id="list-toggle" class="bar-button" type="button" aria-expanded="false" aria-controls="list-panel">
+      <span class="icon" data-icon="chevron" aria-hidden="true"></span>
+      <span id="list-toggle-label"></span>
+    </button>
+    <span id="word-position"></span>
+    <button id="word-previous" class="bar-button" type="button" data-icon="previous"></button>
+    <button id="word-next" class="bar-button" type="button" data-icon="next"></button>
+  </div>
 </main>
 
 <script type="module" src="/static/app.js"></script>

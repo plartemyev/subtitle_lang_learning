@@ -238,6 +238,40 @@ msgstr "В этой фразе"
 msgid "legend_hint"
 msgstr "наведите курсор на слово — лемма и грамматика · щёлкните по фразе, чтобы скопировать"
 
+#. Touch devices have no hover: the hint under the context phrase there.
+msgid "legend_hint_touch"
+msgstr "коснитесь слова — лемма и грамматика"
+
+#. Phone layout of the web frontend: bottom bar, list panel, collapsed header
+#. and source form, and the surfaces that replace the tooltips.
+msgid "button_copy_phrase"
+msgstr "Скопировать фразу"
+
+msgid "phrase_copied"
+msgstr "Скопировано"
+
+msgid "button_close"
+msgstr "Закрыть"
+
+msgid "menu_settings"
+msgstr "Настройки"
+
+msgid "word_list"
+msgstr "Список слов"
+
+#. Position of the selected word in the frequency list.
+msgid "word_position"
+msgstr "{current} из {total}"
+
+msgid "word_previous"
+msgstr "Предыдущее слово"
+
+msgid "word_next"
+msgstr "Следующее слово"
+
+msgid "source_label"
+msgstr "Источник субтитров"
+
 #. Universal Dependencies morphology values shown in word tooltips.
 msgid "morph_person_1"
 msgstr "1-е лицо"
