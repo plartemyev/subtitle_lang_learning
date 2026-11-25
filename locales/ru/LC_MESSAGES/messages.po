@@ -277,6 +277,9 @@ msgstr "Предыдущее слово"
 msgid "word_next"
 msgstr "Следующее слово"
 
+msgid "source_label"
+msgstr "Источник субтитров"
+
 #. Universal Dependencies morphology values shown in word tooltips.
 msgid "morph_person_1"
 msgstr "1-е лицо"

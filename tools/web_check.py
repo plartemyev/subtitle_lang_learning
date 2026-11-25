@@ -275,11 +275,15 @@ def phone_extras(page, problems):
     page.locator('#settings-toggle').tap()
     page.wait_for_timeout(150)
     check(problems, not language.is_visible(), 'the settings button does not close the menus')
-    # the source form is in full view from the start, no fold to tap open
-    check(problems, page.locator('#source-tabs').is_visible(),
-          'the source tabs are not visible without a tap')
-    check(problems, page.locator('#pane-online').is_visible(),
-          'the online source form is not visible without a tap')
+    tabs = page.locator('#source-tabs')
+    # after the load the form has folded into the summary row: tap it open and
+    # closed again
+    page.locator('#source-summary').tap()
+    page.wait_for_timeout(150)
+    check(problems, tabs.is_visible(), 'the source row does not open the source form')
+    page.locator('#source-summary').tap()
+    page.wait_for_timeout(150)
+    check(problems, not tabs.is_visible(), 'the source row does not fold the source form')
 
 
 def run_mobile(browser, args, sample):
@@ -300,6 +304,11 @@ def run_mobile(browser, args, sample):
         watch_errors(page, errors)
         page.goto(args.url.rstrip('/') + '/')
         page.wait_for_function(READY, timeout=30000)
+        problems = []
+        # the form starts expanded: once the sample loads it folds away, so
+        # this is the only moment the initial state can be observed
+        check(problems, page.locator('#source-tabs').is_visible(),
+              'the source form does not start expanded')
         page.set_input_files('#file-input', sample)
         page.wait_for_selector('#words-list li', timeout=120000)
         page.wait_for_timeout(400)

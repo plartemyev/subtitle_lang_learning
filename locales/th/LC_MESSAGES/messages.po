@@ -273,6 +273,9 @@ msgstr "คำก่อนหน้า"
 msgid "word_next"
 msgstr "คำถัดไป"
 
+msgid "source_label"
+msgstr "แหล่งที่มาของคำบรรยาย"
+
 #. Universal Dependencies morphology values shown in word tooltips.
 msgid "morph_person_1"
 msgstr "บุรุษที่ 1"

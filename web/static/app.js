@@ -13,6 +13,7 @@ const state = {
   subtitleLanguage: 'eng',
   analysis: null,
   selectedWord: '',
+  sourceLabel: '',
   listOpen: false,
   inspected: null,  // phrase token shown in the word card (touch)
   explained: null,  // 'word' or a category: the chip whose explanation is open
@@ -188,6 +189,7 @@ function currentLanguage() {
 
 function onSubtitleLanguageChanged() {
   state.subtitleLanguage = els.subtitleLanguage.value;
+  renderSourceSummary();
   // in subtitle mode the painted tradition follows the language selector
   if (symbolSystemMode() === 'subtitle') {
     applySymbolSystem();
@@ -819,8 +821,8 @@ function applyAnalysis(analysis) {
   literalPayloads.clear();
   dictionaryFetches.clear();
   dictionaryPayloads.clear();
-  els.details.hidden = true;
   els.intro.hidden = true;  // the start-screen description has served its purpose
+  els.details.hidden = true;
   els.phraseTranslation.hidden = true;
   els.phraseLiteral.hidden = true;
   populateWordsList();
@@ -842,6 +844,7 @@ async function loadOnline(event) {
     const payload = await response.json();
     if (payload.analysis) {
       applyAnalysis(payload.analysis);
+      state.sourceLabel = query;
     }
     warning = payload.messages;
   } catch (error) {
@@ -850,6 +853,7 @@ async function loadOnline(event) {
   } finally {
     setBusy(false);
   }
+  sourceLoaded();
 }
 
 async function loadFile(file) {
@@ -867,6 +871,7 @@ async function loadFile(file) {
         : {code: 'unable_to_load_file', params: {path: file.name}}];
     } else {
       applyAnalysis(await response.json());
+      state.sourceLabel = file.name;
     }
   } catch (error) {
     console.error(error);
@@ -874,6 +879,7 @@ async function loadFile(file) {
   } finally {
     setBusy(false);
   }
+  sourceLoaded();
 }
 
 /* ---------- global tooltip layer ---------- */
@@ -957,9 +963,10 @@ function switchSourceTab(activeTab, activePane) {
   activeTab.classList.add('active');
   els.paneOnline.classList.toggle('hidden', activePane !== els.paneOnline);
   els.paneFile.classList.toggle('hidden', activePane !== els.paneFile);
+  renderSourceSummary();
 }
 
-/* ---------- phone shell: dock, list panel and the folded header ---------- */
+/* ---------- phone shell: dock, list panel, collapsed header and source ---------- */
 
 function wordOrder() {
   return state.analysis ? Object.keys(state.analysis.words) : [];
@@ -993,13 +1000,33 @@ function stepWord(step) {
   selectWord(order[index]);
 }
 
+function renderSourceSummary() {
+  const fileSource = !els.paneFile.classList.contains('hidden');
+  els.sourceName.textContent = state.sourceLabel
+    || i18n.tr(fileSource ? 'tab_file_source' : 'tab_online_source');
+  els.sourceLanguage.textContent = i18n.tr('language_name_' + state.subtitleLanguage);
+}
+
+function setSourceOpen(open) {
+  els.sourceSummary.setAttribute('aria-expanded', String(open));
+}
+
+/* after a load attempt: the summary names the source and folds the form; a
+ * failure keeps it open for another try */
+function sourceLoaded() {
+  renderSourceSummary();
+  setSourceOpen(warning && warning.length > 0);
+}
+
 function retranslateShell() {
   els.settingsToggle.setAttribute('aria-label', i18n.tr('menu_settings'));
+  els.sourceCaption.textContent = i18n.tr('source_label');
   els.listToggleLabel.textContent = i18n.tr('word_list');
   els.wordPrevious.setAttribute('aria-label', i18n.tr('word_previous'));
   els.wordNext.setAttribute('aria-label', i18n.tr('word_next'));
   els.cardClose.setAttribute('aria-label', i18n.tr('button_close'));
   els.copyLabel.textContent = i18n.tr('button_copy_phrase');
+  renderSourceSummary();
   renderDock();
 }
 
@@ -1015,6 +1042,10 @@ function onInputModeChange() {
 function collectShellElements() {
   els.menubar = el('menubar');
   els.settingsToggle = el('settings-toggle');
+  els.sourceSummary = el('source-summary');
+  els.sourceCaption = el('source-caption');
+  els.sourceName = el('source-name');
+  els.sourceLanguage = el('source-language');
   els.listPanel = el('list-panel');
   els.dock = el('dock');
   els.listToggle = el('list-toggle');
@@ -1040,6 +1071,8 @@ function wireShell() {
     const open = els.menubar.classList.toggle('settings-open');
     els.settingsToggle.setAttribute('aria-expanded', String(open));
   });
+  els.sourceSummary.addEventListener('click', () => setSourceOpen(
+    els.sourceSummary.getAttribute('aria-expanded') !== 'true'));
   els.listToggle.addEventListener('click', () => {
     state.listOpen = !state.listOpen;
     renderDock();

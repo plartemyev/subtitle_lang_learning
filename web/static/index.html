@@ -33,6 +33,14 @@
   </label>
 </header>
 
+<!-- phone layout only: the tabs and panes below fold into this row,
+     which starts expanded and folds once a subtitle is loaded -->
+<button id="source-summary" type="button" aria-expanded="true" aria-controls="source-tabs">
+  <span id="source-caption" class="visually-hidden"></span>
+  <span id="source-name" class="source-name"></span>
+  <span id="source-language"></span>
+  <span class="icon" data-icon="chevron" aria-hidden="true"></span>
+</button>
 <nav id="source-tabs">
   <button id="tab-online" class="tab active" type="button"></button>
   <button id="tab-file" class="tab" type="button"></button>

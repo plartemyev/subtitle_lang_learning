@@ -98,9 +98,9 @@ itself (prefix locations ending in a slash do that automatically); only the
 slashed form reaches the app. `tools/web_check.py --url http://host/subs/`
 verifies the stack behind such a proxy.
 
-At 720 px and below the page is a phone shell: the two header menus fold into
-single rows while the subtitle source tabs and form stay in full view, the
-word details scroll on their own, and
+At 720 px and below the page is a phone shell: the two header menus and the
+source form fold into single rows - the form starts expanded and folds back
+once a subtitle is loaded - the word details scroll on their own, and
 a bottom bar carries the word-list button beside previous/next for the
 selected word. The list opens upwards from that bar - it is the content until
 a word is picked - and folds back after a pick, so whatever a finger needs
