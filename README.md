@@ -67,6 +67,15 @@ one-to-one. The whole stack ships as one container:
     docker compose up --build --detach
     # then open http://127.0.0.1:8000
 
+The stack starts empty: it mounts `./data` as it is, so the word list works at
+once, while tooltips and the word-by-word view need the dictionary
+(DICTIONARY BUILD) and phrase translation the remote engine (LAN LLAMA.CPP
+WIRING) or its offline backup (LOCAL MODEL FALLBACK). Each section covers the
+host setup and what differs under Docker. The container runs as host uid/gid
+(`user:` in docker-compose.yml, first-user defaults `1000:1000`), so files it
+creates in the `./data` mount stay owned by the host user and the desktop
+frontend and the stack share the directory without permission conflicts.
+
 The SPA shell and its static assets are served with `Cache-Control:
 max-age=600` - repeat visits cost zero round trips (friendly to lossy
 high-latency links), and a deploy reaches everyone within ten minutes
@@ -110,8 +119,8 @@ Phrase translation runs through a fallback chain of model engines. The
 primary one is a remote OpenAI-compatible server - Ollama or llama.cpp
 serving a large multilingual model (the reference deployment:
 Qwen3.6-35B) - configured with `OLLAMA_BASE_URL`, `OLLAMA_MODEL` and
-`OLLAMA_API_KEY` read from the gitignored `.env` (the Qt desktop frontend
-loads that file itself at startup, compose reads it for the web stack);
+`OLLAMA_API_KEY` read from the gitignored `.env`, which every frontend picks
+up (see LAN LLAMA.CPP WIRING);
 thinking mode is explicitly disabled and the collapsed prompt protocol
 follows the benchmark in docs/offline-translation-research.md. The
 offline fallback is Tencent HY-MT1.5-1.8B (Q4_K_M GGUF, ~1.1 GB) under a
@@ -134,17 +143,20 @@ at 300 ms and render the instant word-by-word dictionary view (the
 surface/lemma/POS dictionary picks, a reverse index and transliteration
 fallback - see docs/offline-translation-research.md.
 
-Everything lives outside the repository in the data directory (`data/`
-by default, override with `SUBTITLE_LEARNING_DATA_DIR`):
+Everything lives in the data directory (`data/` by default, override with
+`SUBTITLE_LEARNING_DATA_DIR`). Git tracks only the skeleton (`data/.gitignore`
+with `.gitkeep` placeholders); every artifact below is built or downloaded
+per machine:
 
     data/models/hymt15-1.8b-q4km/    local fallback model GGUF
     data/dictionary/kaikki.sqlite    Wiktionary glosses/translations lookup
     data/dictionary/reverse.sqlite   translation term -> headword index
     data/cache/translations.sqlite   phrase translation LRU cache
 
-Prepare once (the dictionary build streams ~3.4 GB of Wiktionary dumps;
-a llama.cpp binary on PATH is needed for the local fallback - the
-distribution `llama-server` package or a llama.cpp release build):
+Prepare once - step by step in DICTIONARY BUILD and LOCAL MODEL FALLBACK
+(the dictionary build streams ~3.7 GB of Wiktionary dumps; a llama.cpp
+binary is needed for the local fallback - the distribution `llama-server`
+package or a llama.cpp release build):
 
     poetry install --with web
     poetry run python tools/build_dictionary.py
@@ -259,9 +271,9 @@ SYSTEM DEPENDENCIES
 * **gettext toolchain** (`msgfmt`) - developer-only, to recompile locale
   catalogs after editing `.po` files (`tools/compile_locales.sh`; the
   compiled `.mo` files are committed).
-* **ripgrep/grep** and ~3.4 GB of network - only for the one-time
-  dictionary build (`tools/build_dictionary.py` streams the kaikki.org
-  dumps; downloads are cached under `tmp/dict-build/`).
+* ~3.7 GB of network - only for the one-time dictionary build
+  (`tools/build_dictionary.py` streams the kaikki.org dumps; downloads are
+  cached under `tmp/dict-build/` - see DICTIONARY BUILD).
 
 EXTERNAL LLM WIRING
 -------------------
@@ -287,6 +299,12 @@ UI keeps the dictionary view; nothing requires an online service.
 
 INSTALLATION
 ------------
+Installation sets up the Python environment of a frontend. The Wiktionary
+dictionary and the translation engines are prepared separately - DICTIONARY
+BUILD, LAN LLAMA.CPP WIRING and LOCAL MODEL FALLBACK - and every frontend
+starts without them, with the dictionary lines and the phrase translation
+simply missing.
+
 ### On Linux:
 * Install Python 3.14+ and Poetry 2.x via your distribution package manager.
 * Clone or download this repository.
@@ -312,6 +330,110 @@ Or analyze subtitles in the terminal: `poetry run python cli.py <SRT-file-or-tit
 * Open the command prompt "terminal" and execute `git clone git@github.com:plartemyev/subtitle_lang_learning.git`
 * Change into the directory and run: `poetry install --with desktop`
 * And run the program by executing `poetry run python3 main.py`
+
+DICTIONARY BUILD
+----------------
+Word tooltips and the word-by-word view read a Wiktionary database that the
+repository does not ship. `tools/build_dictionary.py` builds it from the
+kaikki.org wiktextract dumps: the headwords of each edition that carry glosses
+and/or translations into the UI languages go into
+`<data-dir>/dictionary/kaikki.sqlite`, and the reverse term index
+`reverse.sqlite` is derived from them.
+
+    poetry install --with tools    # optional orjson, ~5x faster dump parsing
+    poetry run python tools/build_dictionary.py
+
+The default `--languages eng,deu,rus` covers every subtitle language;
+`--languages deu` builds a subset and `--data-dir` another target. It
+downloads ~3.7 GB (English 3.1 GB, German and Russian 0.3 GB each) into the
+cache under `tmp/dict-build/`, so count on ~4.3 GB of disk. Delete the cache
+afterwards to free it - or before a rebuild, since a rerun reuses whatever is
+cached. The finished pair is ~0.6 GB.
+
+The web stack looks the files up on every request: a dictionary that appears
+after start-up needs no restart. Under Docker the build runs on the host
+(`tools/` is not in the image) into the default `data/`, the directory the
+stack mounts. Attribution (CC BY-SA 4.0): see OFFLINE TRANSLATION.
+
+LAN LLAMA.CPP WIRING
+--------------------
+The primary phrase-translation engine is a llama.cpp server on the LAN
+serving a large multilingual model: Qwen3.6-35B-A3B in the reference
+deployment, inside the 3 s/phrase budget and the strongest translator of the
+benchmarked field (docs/offline-translation-research.md). On the server:
+
+    llama-server -m /models/Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf \
+        --host 0.0.0.0 --port 8011 --api-key <secret>
+
+* `--host`: llama-server binds `127.0.0.1` by default, which keeps it on its
+  own machine. Give the app a LAN address - under Docker `localhost` is the
+  container itself.
+* `--api-key`: optional; without it the server accepts every request.
+* `-np N` (`--parallel`): how many phrases the server handles at once - the
+  reference box reports a single slot. The app probes `<base URL>/health`
+  before each phrase, and while every slot is busy llama.cpp answers 503
+  there, so the app moves to the local fallback for 10 s.
+* `--jinja` (on by default): the app switches the model's thinking mode off
+  with `chat_template_kwargs: {"enable_thinking": false}`, which the server's
+  chat template applies - thinking left on costs hundreds of hidden tokens
+  per phrase.
+
+On the client all wiring lives in the gitignored `.env` next to the repository
+(variable reference: EXTERNAL LLM WIRING):
+
+    OLLAMA_BASE_URL=http://<host>:8011/v1
+    OLLAMA_MODEL=/models/Qwen3.6-35B-A3B-UD-Q4_K_XL.gguf
+    OLLAMA_API_KEY=<the server's --api-key value>
+
+`OLLAMA_MODEL` is the id `GET <base URL>/models` reports - for llama.cpp the
+model's path; leave `OLLAMA_API_KEY` out when the server runs without one.
+Every frontend reads the file: the desktop app and a backend started without
+Docker load it at startup, and the compose stack hands it to the container
+(`env_file` in docker-compose.yml). Keep it to one `KEY=VALUE` per line
+without inline comments (a trailing `# ...` ends up in the value); exported
+environment variables win over the file. A changed `.env` reaches a running
+stack through `docker compose up --detach`, which recreates the container -
+a plain `restart` keeps the old variables.
+
+Check: `curl <base URL>/models -H "Authorization: Bearer <key>"` lists the
+model, and selecting a word in the UI brings its translation within a few
+seconds (`docker compose logs web` names a failing server:
+`remote-ollama failed, falling back: ...`). The pre-call probes allow 0.5 s,
+which suits a LAN, not a slow VPN tunnel.
+
+LOCAL MODEL FALLBACK
+--------------------
+When the LAN server is unreachable or busy, phrases go to Tencent
+HY-MT1.5-1.8B (Q4_K_M GGUF, ~1.1 GB), which the app serves itself through a
+`llama-server` subprocess on the CPU - over the latency budget, but offline
+(benchmark and license notes: OFFLINE TRANSLATION). Two one-time steps on the
+host. First download the model:
+
+    poetry run python tools/prepare_hymt15.py
+
+It lands in `data/models/hymt15-1.8b-q4km/` (an `HF_TOKEN` in `.env` speeds
+this up; a rerun is a no-op). Second, provide `llama-server`: unpack a
+llama.cpp release tarball into `data/bin/llama-cpp/` - the whole archive, the
+binaries load their sibling libraries from that directory - or put one on
+`PATH`, or point `LLAMA_SERVER_BIN` at it. The fallback registers itself once
+both the model file and the binary resolve (variables: EXTERNAL LLM WIRING);
+nothing else needs configuring. It starts lazily at the first fallback
+translation and then stays up, holding 1.5-2 GB of memory.
+
+The engine chain is built at the first phrase translation and kept for the
+life of the process: prepare both pieces before the first launch, or restart
+afterwards - the desktop app or a bare backend by relaunching, the stack with
+`docker compose restart web`.
+
+Under Docker the model and the binary arrive through the mounted `./data`,
+and the Linux x86-64 release build runs in the container unchanged; its
+server listens on the container's own loopback, so nothing needs publishing.
+A `.env` shared with the stack must not carry a host path in
+`LLAMA_LOCAL_MODEL` - the container only sees `/app/data`.
+
+Check: with no LAN server configured, `/api/translate/phrase` answers with a
+translation instead of 503 `translation_unavailable`; with one configured,
+the log line `remote-ollama failed, falling back: ...` marks the switch.
 
 
 TODO

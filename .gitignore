@@ -6,6 +6,5 @@ __pycache__/
 /.zcode/
 /samples/
 /.env
-/data/
 /.venv/
 /venv/

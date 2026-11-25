@@ -20,6 +20,7 @@ from pydantic import BaseModel
 from core import analyzer, paths
 from core.controller import AppController
 from core.dictionary import KaikkiDictionary, ReverseDictionaryIndex
+from core.env import load_dotenv
 from core.languages import DEFAULT_LANGUAGE_CODE, LANGUAGES
 from core.literal import LiteralDictionary
 from core.opensubtitles import OpenSubtitlesClient
@@ -35,7 +36,10 @@ STATIC_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
 # data directory (env override), prepared once by tools/build_dictionary.py
 # and tools/prepare_hymt15.py - see README. The model engines are a remote
 # OpenAI-compatible server (OLLAMA_* variables from the gitignored .env)
-# with a local HY-MT1.5-1.8B llama.cpp fallback.
+# with a local HY-MT1.5-1.8B llama.cpp fallback. Started outside compose the
+# backend loads that file itself, like the desktop frontend; under compose the
+# file is absent from the image and the variables come through env_file.
+load_dotenv()  # before DATA_DIR: SUBTITLE_LEARNING_DATA_DIR may live there too
 DATA_DIR = paths.data_dir()
 DICTIONARY_DB_PATH = DATA_DIR / 'dictionary' / 'kaikki.sqlite'
 DICTIONARY_REVERSE_PATH = DATA_DIR / 'dictionary' / 'reverse.sqlite'

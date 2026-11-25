@@ -1,10 +1,19 @@
 services:
   web:
     build: .
+    # host uid/gid (first-user defaults): files the service creates in the
+    # ./data bind mount stay owned by the host user, so the desktop frontend
+    # and the container share the directory without permission conflicts
+    user: "${UID:-1000}:${GID:-1000}"
     ports:
       - "8000:8000"
     environment:
       - SUBTITLE_LEARNING_DATA_DIR=/app/data
+    # engine wiring from the gitignored .env (OLLAMA_*/LLAMA_*, see README);
+    # without the file there is no remote engine. environment: wins on conflicts
+    env_file:
+      - path: .env
+        required: false
     volumes:
       - ./data:/app/data
     restart: unless-stopped

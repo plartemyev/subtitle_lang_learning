@@ -1,0 +1,15 @@
+# Git tracks the directory skeleton (this file and the .gitkeep placeholders)
+# so a fresh clone - and the ./data bind mount of the compose stack - starts
+# with the structure in place; every artifact in it stays untracked.
+/*
+!/.gitignore
+!/bin/
+!/cache/
+!/dictionary/
+!/models/
+/bin/**
+!/bin/llama-cpp/
+/cache/**
+/dictionary/**
+/models/**
+!**/.gitkeep

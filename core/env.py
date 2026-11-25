@@ -1,8 +1,8 @@
 """Gitignored .env loading for frontends launched outside compose.
 
-Docker compose reads the repository .env itself; the desktop frontend runs
-bare on the host, so it loads the same file once at startup. Secrets never
-enter the repository (see README).
+Docker compose reads the repository .env itself; the desktop frontend and the
+bare web backend run on the host, so they load the same file once at startup.
+Secrets never enter the repository (see README).
 """
 import logging
 import os
