@@ -272,9 +272,6 @@ msgstr "Previous word"
 msgid "word_next"
 msgstr "Next word"
 
-msgid "source_label"
-msgstr "Subtitles source"
-
 #. Universal Dependencies morphology values shown in word tooltips.
 msgid "morph_person_1"
 msgstr "1st person"

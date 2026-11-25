@@ -266,9 +266,6 @@ msgstr "Vorheriges Wort"
 msgid "word_next"
 msgstr "Nächstes Wort"
 
-msgid "source_label"
-msgstr "Untertitelquelle"
-
 #. Universal Dependencies morphology values shown in word tooltips.
 msgid "morph_person_1"
 msgstr "1. Person"

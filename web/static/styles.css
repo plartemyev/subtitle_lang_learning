@@ -323,7 +323,7 @@ button:disabled { opacity: 0.5; cursor: default; }
 .card-line + .card-line { margin-top: 4px; }
 
 /* ---------- phone shell parts: unused next to the pointer layout ---------- */
-#settings-toggle, #source-summary, #dock { display: none; }
+#settings-toggle, #dock { display: none; }
 #dock[hidden] { display: none; }
 #list-panel { display: contents; }  /* the list itself is the grid column */
 .word-count { display: none; margin-left: 12px; font-size: 14px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
@@ -339,22 +339,12 @@ button:disabled { opacity: 0.5; cursor: default; }
 }
 .icon, .bar-button { display: inline-flex; flex: none; }
 .icon svg, .bar-button svg { display: block; }
-.visually-hidden {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  padding: 0;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  white-space: nowrap;
-  border: 0;
-}
 
 /* ---------- phone shell (720 px and below) ----------
- * The header and the source form collapse, the details scroll on their own
- * and the word list opens upwards from the bottom bar that holds its button:
- * the list and previous/next stay in thumb reach while a word is read. */
+ * The header menus fold, the source form stays in full view, the details
+ * scroll on their own and the word list opens upwards from the bottom bar
+ * that holds its button: the list and previous/next stay in thumb reach
+ * while a word is read. */
 @media (max-width: 720px) {
   body { height: 100vh; height: 100dvh; overflow: hidden; }
   #status-line { flex: none; }
@@ -365,12 +355,7 @@ button:disabled { opacity: 0.5; cursor: default; }
   .menu-label { display: none; flex: 1 1 100%; min-height: 48px; padding-bottom: 8px; }
   #menubar.settings-open .menu-label { display: flex; }
   #menubar select { min-height: 44px; }
-  #source-summary { display: flex; align-items: center; gap: 8px; flex: none; width: 100%; min-height: 44px; padding: 0 12px; border: 0; border-bottom: 1px solid var(--line-1); background: #ffffff; text-align: left; font-size: 14px; color: var(--ink-2); }
-  .source-name { flex: 1; min-width: 0; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  #source-summary[aria-expanded="true"] .icon, #list-toggle[aria-expanded="true"] .icon { transform: rotate(180deg); }
-  #source-tabs, #source-panes { display: none; }
-  #source-summary[aria-expanded="true"] + #source-tabs { display: flex; }
-  #source-summary[aria-expanded="true"] ~ #source-panes { display: block; }
+  #list-toggle[aria-expanded="true"] .icon { transform: rotate(180deg); }
   .source-pane { flex-wrap: wrap; }  /* never wider than the viewport */
   #main-layout { display: flex; flex-direction: column; gap: 0; padding: 0; }
   #details { flex: 1 1 auto; padding: 4px 12px 12px; }

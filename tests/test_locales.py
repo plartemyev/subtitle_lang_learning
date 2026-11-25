@@ -104,7 +104,6 @@ EXPECTED_CODES = frozenset({
     'word_position',
     'word_previous',
     'word_next',
-    'source_label',
     *_morph_message_codes(),
 })
 

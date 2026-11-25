@@ -275,13 +275,11 @@ def phone_extras(page, problems):
     page.locator('#settings-toggle').tap()
     page.wait_for_timeout(150)
     check(problems, not language.is_visible(), 'the settings button does not close the menus')
-    tabs = page.locator('#source-tabs')
-    page.locator('#source-summary').tap()
-    page.wait_for_timeout(150)
-    check(problems, tabs.is_visible(), 'the source row does not open the source form')
-    page.locator('#source-summary').tap()
-    page.wait_for_timeout(150)
-    check(problems, not tabs.is_visible(), 'the source row does not fold the source form')
+    # the source form is in full view from the start, no fold to tap open
+    check(problems, page.locator('#source-tabs').is_visible(),
+          'the source tabs are not visible without a tap')
+    check(problems, page.locator('#pane-online').is_visible(),
+          'the online source form is not visible without a tap')
 
 
 def run_mobile(browser, args, sample):
