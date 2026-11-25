@@ -36,7 +36,7 @@ export function detectLocale() {
 export async function setLocale(code) {
   if (!LOCALES.includes(code)) throw new Error('unsupported locale ' + code);
   if (!catalogs[code]) {
-    const response = await fetch('/api/i18n/' + code);
+    const response = await fetch('api/i18n/' + code);
     if (!response.ok) throw new Error('catalog unavailable for ' + code);
     catalogs[code] = (await response.json()).messages;
   }

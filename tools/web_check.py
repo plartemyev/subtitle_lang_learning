@@ -18,6 +18,9 @@ Usage (backend must be up):
     python3 tools/web_check.py --url http://127.0.0.1:8123 --mobile
     python3 tools/web_check.py --url http://127.0.0.1:8123 --mobile --device 360x780,390x844
 
+The base URL may include a reverse-proxy subpath (the frontend uses only
+relative URLs): --url http://host/subs/
+
 Exit status: 1 with console errors (desktop), the number of problems found
 (mobile).
 
@@ -152,7 +155,7 @@ def desktop_run(browser, args, sample):
     errors = []
     page = browser.new_page(viewport={'width': 1440, 'height': 900})
     watch_errors(page, errors)
-    page.goto(args.url + '/')
+    page.goto(args.url.rstrip('/') + '/')
     page.wait_for_timeout(1500)
     if args.locale:
         page.select_option('#ui-language', args.locale)
@@ -297,7 +300,7 @@ def run_mobile(browser, args, sample):
         context.add_init_script(f'localStorage.setItem("ui_language", {json.dumps(args.locale)})')
         page = context.new_page()
         watch_errors(page, errors)
-        page.goto(args.url + '/')
+        page.goto(args.url.rstrip('/') + '/')
         page.wait_for_function(READY, timeout=30000)
         page.set_input_files('#file-input', sample)
         page.wait_for_selector('#words-list li', timeout=120000)

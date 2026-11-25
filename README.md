@@ -85,6 +85,19 @@ Without Docker: `poetry install --with web` and run
 `poetry run python -m uvicorn web.app:app --host 0.0.0.0 --port 8000`.
 The page is plain HTML/JS/CSS from our own origin, no third-party scripts.
 
+The frontend uses only relative URLs, so it also runs under a reverse-proxy
+subpath unchanged - nginx strips the prefix and the backend keeps seeing
+`/` and `/api/...`:
+
+    location /subs/ {
+        proxy_pass http://127.0.0.1:8000/;
+    }
+
+Requests to `/subs` without the slash are redirected to `/subs/` by nginx
+itself (prefix locations ending in a slash do that automatically); only the
+slashed form reaches the app. `tools/web_check.py --url http://host/subs/`
+verifies the stack behind such a proxy.
+
 At 720 px and below the page is a phone shell: the two header menus and the
 source form fold into single rows, the word details scroll on their own, and
 a bottom bar carries the word-list button beside previous/next for the
