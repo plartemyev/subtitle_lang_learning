@@ -140,9 +140,13 @@ follows the benchmark in docs/offline-translation-research.md. The
 offline fallback is Tencent HY-MT1.5-1.8B (Q4_K_M GGUF, ~1.1 GB) under a
 local llama.cpp subprocess, prepared once by `tools/prepare_hymt15.py`.
 Switching is probe-driven: the remote's cached state is checked first,
-then a 0.5 s connect probe and a 0.5 s slot-availability probe run - a busy
-server is skipped for 10 s, an unreachable one for 10 minutes, and any
-successful call clears the state. Between the cached states the chain
+then 0.5 s connect, health and occupancy probes run - llama.cpp exposes
+live queue gauges on `/metrics` (requests queued or every slot processing
+mean business; `/health` keeps answering 200 while generating, so it only
+catches the model-loading state), and the chain also counts its own
+completions in flight against the server's slot count. A busy server is
+skipped for 10 s, an unreachable one for 10 minutes, and any successful
+call clears the state. Between the cached states the chain
 falls to the local model, and to 503 `translation_unavailable` (or the
 same localized line in the desktop view) when nothing answers; per-word
 tooltips are dictionary-based and unaffected. Phrase translation calls
@@ -387,9 +391,12 @@ benchmarked field (docs/offline-translation-research.md). On the server:
   container itself.
 * `--api-key`: optional; without it the server accepts every request.
 * `-np N` (`--parallel`): how many phrases the server handles at once - the
-  reference box reports a single slot. The app probes `<base URL>/health`
-  before each phrase, and while every slot is busy llama.cpp answers 503
-  there, so the app moves to the local fallback for 10 s.
+  reference box reports a single slot. Before each phrase the app reads the
+  llama.cpp `/metrics` gauges (root path, next to `/health`; `/v1`-style
+  base URLs are trimmed) and skips the remote for 10 s while requests are
+  queued or every slot is processing - a completion sent then would sit in
+  the server queue behind the running generation, since extra requests are
+  queued, not rejected.
 * `--jinja` (on by default): the app switches the model's thinking mode off
   with `chat_template_kwargs: {"enable_thinking": false}`, which the server's
   chat template applies - thinking left on costs hundreds of hidden tokens
