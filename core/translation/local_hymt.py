@@ -71,12 +71,37 @@ class LocalLlamaProvider:
     def _base_url(self):
         return f'http://127.0.0.1:{self.port}'
 
+    def prewarm(self):
+        """Start the server now and run one throwaway translation-shaped
+        completion, so a fallback translation pays inference only; raises
+        when the engine never becomes usable."""
+        self._ensure_server()
+        self._complete({
+            'messages': [{'role': 'user', 'content': USER_TEMPLATE.format(
+                target=LANGUAGE_NAMES['en'], text='Hello.')}],
+            'max_tokens': 16, 'cache_prompt': True, **SAMPLING})
+
+    def _complete(self, payload):
+        """POST one chat completion and return the parsed answer; a
+        transport-level failure stops the server - a wedged server must
+        not poison later fallbacks."""
+        request = urllib.request.Request(
+            f'{self._base_url()}/v1/chat/completions',
+            data=json.dumps(payload).encode('utf-8'),
+            headers={'Content-Type': 'application/json'})
+        try:
+            with urllib.request.urlopen(request, timeout=self.timeout) as response:
+                return json.loads(response.read().decode('utf-8'))
+        except (urllib.error.URLError, OSError, json.JSONDecodeError) as error:
+            self.stop()
+            raise RuntimeError(f'{self.label}: {error}') from error
+
     def _ensure_server(self):
         with self._lock:
             if self._process is not None and self._process.poll() is None:
                 return
             command = [self.server_bin, '-m', self.model_path,
-                       '--port', str(self.port), '-t', '8', '-c', '2048',
+                       '--port', str(self.port), '-c', '2048',
                        '-ngl', '0', '--jinja', '--no-warmup']
             logger.info('starting local llama-server on port %d', self.port)
             self._process = subprocess.Popen(
@@ -100,23 +125,13 @@ class LocalLlamaProvider:
 
     def translate(self, text, source_code, target_locale, words):
         self._ensure_server()
-        payload = {
+        result = self._complete({
             'messages': [{'role': 'user', 'content': USER_TEMPLATE.format(
                 target=LANGUAGE_NAMES[target_locale], text=text)}],
             'max_tokens': 256,
             'cache_prompt': True,
             **SAMPLING,
-        }
-        request = urllib.request.Request(
-            f'{self._base_url()}/v1/chat/completions',
-            data=json.dumps(payload).encode('utf-8'),
-            headers={'Content-Type': 'application/json'})
-        try:
-            with urllib.request.urlopen(request, timeout=self.timeout) as response:
-                result = json.loads(response.read().decode('utf-8'))
-        except (urllib.error.URLError, OSError, json.JSONDecodeError) as error:
-            self.stop()  # a wedged server must not poison later fallbacks
-            raise RuntimeError(f'{self.label}: {error}') from error
+        })
         content = str(result['choices'][0]['message'].get('content')
                       or '').strip()
         if not content:

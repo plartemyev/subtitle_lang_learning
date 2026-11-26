@@ -168,9 +168,10 @@ per machine:
     data/cache/translations.sqlite   phrase translation LRU cache
 
 Prepare once - step by step in DICTIONARY BUILD and LOCAL MODEL FALLBACK
-(the dictionary build streams ~3.7 GB of Wiktionary dumps; a llama.cpp
-binary is needed for the local fallback - the distribution `llama-server`
-package or a llama.cpp release build):
+(the dictionary build streams ~3.7 GB of Wiktionary dumps; the local
+fallback additionally needs a `llama-server` binary on host installs -
+the distribution package, e.g. `pacman -S llama-cpp` on Arch; the Docker
+image ships it already):
 
     poetry install --with web
     poetry run python tools/build_dictionary.py
@@ -278,10 +279,12 @@ SpaCy ships the English, German and Russian language models as pinned wheels.
 SYSTEM DEPENDENCIES
 -------------------
 * **llama.cpp** (`llama-server`) - only for the local HY-MT1.5 fallback
-  engine. Resolved from `PATH`, an explicit `LLAMA_SERVER_BIN`, or the
-  release build placed in `data/bin/llama-cpp/` (any llama.cpp release
-  tarball works: unpack it there). Not needed when only the remote engine
-  is used.
+  engine, and only for host installs: the Docker image carries the
+  distribution package, so the stack needs nothing unpacked. The binary is
+  resolved from `PATH` or an explicit `LLAMA_SERVER_BIN` first, and the
+  release build in `data/bin/llama-cpp/` (any llama.cpp release tarball,
+  unpacked whole) is only the last resort. Not needed when only the remote
+  engine is used.
 * **gettext toolchain** (`msgfmt`) - developer-only, to recompile locale
   catalogs after editing `.po` files (`tools/compile_locales.sh`; the
   compiled `.mo` files are committed).
@@ -426,24 +429,36 @@ host. First download the model:
     poetry run python tools/prepare_hymt15.py
 
 It lands in `data/models/hymt15-1.8b-q4km/` (an `HF_TOKEN` in `.env` speeds
-this up; a rerun is a no-op). Second, provide `llama-server`: unpack a
-llama.cpp release tarball into `data/bin/llama-cpp/` - the whole archive, the
-binaries load their sibling libraries from that directory - or put one on
-`PATH`, or point `LLAMA_SERVER_BIN` at it. The fallback registers itself once
-both the model file and the binary resolve (variables: EXTERNAL LLM WIRING);
-nothing else needs configuring. It starts lazily at the first fallback
-translation and then stays up, holding 1.5-2 GB of memory.
+this up; a rerun is a no-op). Second, make sure `llama-server` resolves: the
+distribution package does it (`pacman -S llama-cpp` on Arch - the binary is
+found on `PATH`), or point `LLAMA_SERVER_BIN` at one, or as the last resort
+unpack a llama.cpp release tarball into `data/bin/llama-cpp/` - the whole
+archive, the binaries load their sibling libraries from that directory. The
+fallback registers itself once both the model file and the binary resolve
+(variables: EXTERNAL LLM WIRING); nothing else needs configuring. The web
+backend starts it already at start-up - a background thread loads the model
+and runs one throwaway completion while the API serves - so a sudden LAN
+outage costs the first fallback phrase no more than a warm inference; the
+desktop app still starts it at its first fallback translation. Once up it
+stays up, holding 1.5-2 GB of memory.
 
-The engine chain is built at the first phrase translation and kept for the
-life of the process: prepare both pieces before the first launch, or restart
-afterwards - the desktop app or a bare backend by relaunching, the stack with
-`docker compose restart web`.
+No compose service backs this engine: the backend process itself spawns the
+`llama-server` subprocess when the first fallback request arrives and shuts
+it down again at process exit. The docker compose stack therefore has no
+llama entry, and the server listens on the container's own loopback, so
+nothing needs publishing.
 
-Under Docker the model and the binary arrive through the mounted `./data`,
-and the Linux x86-64 release build runs in the container unchanged; its
-server listens on the container's own loopback, so nothing needs publishing.
-A `.env` shared with the stack must not carry a host path in
-`LLAMA_LOCAL_MODEL` - the container only sees `/app/data`.
+The engine chain is built once - at web-backend start-up, at the first
+phrase translation in the desktop app - and kept for the life of the
+process: prepare both pieces before the first launch, or restart
+afterwards - the desktop app or a bare backend by relaunching, the stack
+with `docker compose restart web`.
+
+Under Docker the model arrives through the mounted `./data`, while the image
+carries the distribution `llama-server` package and finds it on `PATH` - no
+tarball is needed for the stack. A `.env` shared with the stack must not
+carry a host path in `LLAMA_LOCAL_MODEL` - the container only sees
+`/app/data`.
 
 Check: with no LAN server configured, `/api/translate/phrase` answers with a
 translation instead of 503 `translation_unavailable`; with one configured,

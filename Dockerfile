@@ -1,8 +1,9 @@
 # Web stack image: FastAPI server + the static single-page UI.
-# archlinux base per project convention.
+# archlinux base per project convention; llama-cpp serves the local
+# HY-MT1.5 fallback engine (README LOCAL MODEL FALLBACK).
 FROM archlinux:latest
 
-RUN pacman -Syu --noconfirm python \
+RUN pacman -Syu --noconfirm python llama-cpp \
     && pacman -Scc --noconfirm
 
 # arch marks system python as externally managed (PEP 668): poetry runs from

@@ -9,6 +9,8 @@ keeping this server free of display text.
 import logging
 import os
 import tempfile
+import threading
+from contextlib import asynccontextmanager
 from typing import Callable
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
@@ -45,7 +47,35 @@ DICTIONARY_DB_PATH = DATA_DIR / 'dictionary' / 'kaikki.sqlite'
 DICTIONARY_REVERSE_PATH = DATA_DIR / 'dictionary' / 'reverse.sqlite'
 TRANSLATION_CACHE_PATH = DATA_DIR / 'cache' / 'translations.sqlite'
 
-app = FastAPI(title='subtitle_lang_learning', docs_url=None, redoc_url=None, openapi_url=None)
+def _prewarm_engines():
+    """Start the local fallback llama-server in the background at process
+    start-up, so a LAN outage never costs the model-load seconds at the
+    first fallback phrase (README LOCAL MODEL FALLBACK). The remote engines
+    answer through the network and need no prewarm; a failure here is
+    non-fatal - the lazy per-request start retries."""
+    provider = get_translation_provider()
+    if provider is None:
+        return
+    for candidate in getattr(provider, '_providers', []):
+        prewarm = getattr(candidate, 'prewarm', None)
+        if prewarm is None:
+            continue
+        try:
+            prewarm()
+        except Exception:
+            logger.warning('Local engine prewarm failed; the first fallback '
+                           'translation will retry.', exc_info=True)
+
+
+@asynccontextmanager
+async def lifespan(_app):
+    threading.Thread(target=_prewarm_engines, daemon=True,
+                     name='prewarm-engines').start()
+    yield
+
+
+app = FastAPI(title='subtitle_lang_learning', docs_url=None, redoc_url=None,
+              openapi_url=None, lifespan=lifespan)
 app.add_middleware(GZipMiddleware)
 
 

@@ -2,12 +2,14 @@
 import sys
 import unittest
 from pathlib import Path
+from unittest import mock
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 from fastapi.testclient import TestClient
 
+import web.app
 from core.translation.cache import cache_key
 from core.translation.models import PhraseTranslation, WordTranslation
 from web.app import app, get_dictionary, get_translation_cache, get_translation_provider
@@ -92,6 +94,38 @@ class TranslatePhraseApiTests(unittest.TestCase):
 
     def test_blank_text_is_rejected(self):
         self.assertEqual(self.post_phrase(text='   ').status_code, 400)
+
+
+class FakeChain:
+    """Chain stand-in carrying just the attribute the start-up hook reads."""
+
+    def __init__(self, providers):
+        self._providers = providers
+
+
+class PrewarmTests(unittest.TestCase):
+    """web.app._prewarm_engines warms the engines that expose prewarm and
+    stays non-fatal on engines that fail (the per-request start retries)."""
+
+    def run_hook(self, provider):
+        with mock.patch.object(web.app, 'get_translation_provider',
+                               return_value=provider):
+            web.app._prewarm_engines()
+
+    def test_prewarms_only_engines_that_expose_it(self):
+        warm = mock.Mock()
+        self.run_hook(FakeChain([FakeProvider(), warm]))
+        warm.prewarm.assert_called_once_with()
+
+    def test_survives_a_failing_engine(self):
+        failing = mock.Mock()
+        failing.prewarm.side_effect = RuntimeError('llama-server exited')
+        with self.assertLogs('web.app', level='WARNING'):
+            self.run_hook(FakeChain([failing]))
+        failing.prewarm.assert_called_once_with()
+
+    def test_without_engines_is_a_no_op(self):
+        self.run_hook(None)
 
 
 class FakeDictionary:
